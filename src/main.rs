@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod netlify;
 use driftwood::netlify;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
