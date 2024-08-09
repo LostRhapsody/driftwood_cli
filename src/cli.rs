@@ -101,8 +101,8 @@ fn publish_website(){
     if !check_input_length(&input, 2) {return;}
 
     let website_name = input.trim().to_string();
-    println!("Pretending to publish site `{}` to netlify lol", website_name);
-    let _ = netlify::connect_to_api();
+    // println!("Pretending to publish site `{}` to netlify lol", website_name);
+    // let _ = netlify::connect_to_api();
     println!("Press enter to return to the main menu.");
     print!("> ");
     std::io::stdin().read_line(&mut input).unwrap();

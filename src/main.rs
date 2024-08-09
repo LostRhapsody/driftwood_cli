@@ -1,10 +1,8 @@
 pub mod cli;
 use driftwood::netlify;
 
-/// TODO: Update the Netlify lib so it uses OAuth2 instead of a token
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // cli::draw_menu();
-    netlify::connect_to_api()?;
+    netlify::get_site_details("56830fd5-ff33-438e-a0fd-2d68868cb2e6")?;
     Ok(())
 }

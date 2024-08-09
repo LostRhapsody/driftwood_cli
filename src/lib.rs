@@ -7,6 +7,17 @@ use reqwest::{
     ClientBuilder,
     get,
 };
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum Value {
+    String(String),
+    bool(bool),
+    usize(usize),
+    missing(serde::de::IgnoredAny),
+    null,
+}
 
 pub struct Post {
     pub title: String,
@@ -40,7 +51,13 @@ impl Post {
 
 }
 
-/// TODO - make it so the request's response is a useful data object
+/// TODO - Retrieve all the user's sites and display their info in a list
+/// That means the enum will need to be stored in a vector we can iterate over
+/// TODO - Create a new site request
+/// TODO - Update a site request
+/// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
+/// TODO - Delete a site request
+/// TODO: Update the Netlify lib so it uses OAuth2 instead of a token
 pub struct netlify{
 
 }
@@ -50,25 +67,23 @@ pub struct netlify{
 
 impl netlify {    
     #[tokio::main]
-    pub async fn connect_to_api() -> Result<(), Box<dyn std::error::Error>>  {
+    pub async fn get_site_details(id: &str) -> Result<(), Box<dyn std::error::Error>>  {
 
         println!("Connecting to Netlify API...");
+        println!("Getting site info for site id: {}", id);
         
         // define the user agent
         static APP_USER_AGENT: &str = concat!(
-            // env!("CARGO_PKG_NAME"),
-            // "/",
-            // env!("CARGO_PKG_VERSION"),
-            "MyApp evan.robertson77@gmail.com"
+            env!("CARGO_PKG_NAME"),
+            "/",
+            env!("CARGO_PKG_VERSION"),
         );
 
         // define the token
         static TOKEN: &str = "nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c";
 
         // define the base URL
-        let base_url = String::from("https://api.netlify.com/api/v1/sites/56830fd5-ff33-438e-a0fd-2d68868cb2e6");
-
-        println!("User agent: {}", APP_USER_AGENT);
+        let base_url = String::from("https://api.netlify.com/api/v1/sites/") + id;
 
         // create the builder and client
         let builder = ClientBuilder::new();                
@@ -79,14 +94,17 @@ impl netlify {
 
         // make the request passing in the token
         let resp = client.get(base_url)
-        .bearer_auth(TOKEN)
-        .send()
-        .await?
-        .text() // <- works but it returns stringified JSON, not a useful data object
-        // .json::<HashMap<String, String>>()
-        .await?;
-        
-        println!("{resp:#?}");
+            .bearer_auth(TOKEN)
+            .send()
+            .await?
+            // .text() // <- works but it returns stringified JSON, not a useful data object
+            .json::<HashMap<String, Value>>()
+            .await?;
+        // extract the field name from the json
+        let field_name = resp.get("name").unwrap();
+        let field_url = resp.get("url").unwrap();
+        println!("Site name: {:?}", field_name);
+        println!("Site URL: {:?}", field_url);
         println!("Connection closed.");
         Ok(())
     }
