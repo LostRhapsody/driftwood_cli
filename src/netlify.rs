@@ -5,33 +5,9 @@
 /// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
 /// TODO - Delete a site request
 /// TODO: Update the Netlify lib so it uses OAuth2 instead of a token
-
-use std::collections::HashMap;
 use reqwest::ClientBuilder;
 
 use serde::Deserialize;
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum Value {
-    String(String),
-    Bool(bool),
-    Usize(usize),
-    Missing(serde::de::IgnoredAny),
-    Null,
-}
-
-impl ToString for Value {
-    fn to_string(&self) -> String {
-        match self {
-            Value::String(s) => s.clone(),
-            Value::Bool(b) => b.to_string(),
-            Value::Usize(u) => u.to_string(),
-            Value::Missing(_) => String::new(),
-            Value::Null => String::new(),
-        }
-    }
-}
 
 pub struct Netlify {
     user_agent: String,
@@ -39,9 +15,11 @@ pub struct Netlify {
     url: String,
 }
 
+#[derive(Debug, Deserialize)]
 pub struct SiteDetails {
-    pub name: String,
-    pub url: String,
+    pub name: Option<String>,
+    pub url: Option<String>,
+    pub screenshot_url: Option<String>,
 }
 
 impl Netlify {
@@ -67,7 +45,7 @@ impl Netlify {
 
     }
 
-    pub async fn get_site_details(&self, id: &str) -> Result<(), Box<dyn std::error::Error>>  {
+    pub async fn get_site_details(&self, id: &str) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>>  {
 
         println!("Getting site info for site id: {}", id);
     
@@ -79,22 +57,34 @@ impl Netlify {
             .user_agent(&self.user_agent)
             .build()
             .unwrap();
-    
-        // make the request passing in the token
-        let resp = client.get(request_url)
+
+        println!("Client built.");
+
+        let response = client
+            .get(request_url)
             .bearer_auth(&self.token)
             .send()
-            .await?
-            .json::<HashMap<String, Value>>()
-            .await?;
-        
-        // extract the field name from the json
-        let field_name = resp.get("name").unwrap();
-        let field_url = resp.get("url").unwrap();
-        println!("Site name: {:?}", field_name);
-        println!("Site URL: {:?}", field_url);
-        println!("Connection closed.");
-        Ok(())
+            .await;
+
+        match response {
+            Ok(resp) => {
+                // println!("Response: {:?}", resp);
+                if resp.status().is_success() {
+                    let sites: Vec<SiteDetails> = resp
+                        .json()
+                        .await?;
+                    // println!("Sites deserialized: {:?}", sites);
+                    return Ok(sites);
+                } else {
+                    println!("Failed to get sites: {}", resp.status());
+                    return Err(format!("Failed to get sites: {}", resp.status()).into());
+                }
+            },
+            Err(e) => {
+                println!("Failed to get sites: {:?}", e);
+                return Err(format!("Failed to get sites: {:?}", e).into());
+            }
+        }
     }
     
     pub async fn get_sites(&self) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>>  {    
@@ -111,46 +101,32 @@ impl Netlify {
             .unwrap();
 
         println!("Client built.");
-    
-        // make the request passing in the token
-        let resp = client.get(request_url)
+
+        let response = client
+            .get(request_url)
             .bearer_auth(&self.token)
             .send()
-            .await?
-            .json::<HashMap<String, Value>>()
-            .await?;
+            .await;
 
-        println!("Response received.");
-
-        // loop through the response and store certain fields in vector that make up the details of a 'site' struct
-        let mut sites: Vec<SiteDetails> = Vec::new();
-        for (key, value) in resp.iter() {
-            println!("Key: {:?}, Value: {:?}", key, value);
-            
-            let mut name = String::new();
-            let mut url = String::new();
-
-            if key.to_string() == "name" {
-                name = value.to_string();
-            } else if key.to_string() == "url" {
-                url = value.to_string();
+        match response {
+            Ok(resp) => {
+                // println!("Response: {:?}", resp);
+                if resp.status().is_success() {
+                    let sites: Vec<SiteDetails> = resp
+                        .json()
+                        .await?;
+                    // println!("Sites deserialized: {:?}", sites);
+                    return Ok(sites);
+                } else {
+                    println!("Failed to get sites: {}", resp.status());
+                    return Err(format!("Failed to get sites: {}", resp.status()).into());
+                }
+            },
+            Err(e) => {
+                println!("Failed to get sites: {:?}", e);
+                return Err(format!("Failed to get sites: {:?}", e).into());
             }
-
-            if name == "" || url == "" {
-                continue;
-            }
-
-            let site = SiteDetails {
-                name: name,
-                url: url,
-            };
-
-            println!("Site name: {:?}", site.name);
-
-            sites.push(site);
         }
-
-        Ok(sites)
     }
 
 }

@@ -6,12 +6,13 @@ use netlify::{
     SiteDetails
 };
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // cli::draw_menu();
     println!("new netlify");
     let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
     println!("new netlify done");
-    let _ = Netlify::get_sites(&netlify);
+    let _ = get_sites(netlify).await;
     // let _sites = get_sites(netlify);
 
     // let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
@@ -20,18 +21,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn get_sites(netlify: Netlify) -> Vec<SiteDetails> {
-    println!("Getting all sites...");
-    let sites: Vec<SiteDetails> = 
-        Netlify::get_sites(&netlify)
-        .await
-        .expect("Failed to get all sites");
-    println!("Done");
-
-    for each in &sites {
-        println!("{}", each.name);
+    match netlify.get_sites().await {
+        Ok(sites) => {
+            println!("Done");
+            for each in &sites {
+                println!("\nSite Details:");
+                println!("{:?}", each);
+            }
+            sites
+        }
+        Err(e) => {
+            println!("Error: {:?}", e);
+            vec![]
+        }
     }
-    
-    sites
 }
 
 async fn get_site_details(netlify: Netlify, id: &str) {
