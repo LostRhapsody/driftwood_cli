@@ -5,8 +5,8 @@ use std::{
 
 use driftwood::{
     Post,
-    netlify,
 };
+
 use chrono;
 
 /// Draws the menu and all the options

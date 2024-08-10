@@ -21,6 +21,18 @@ enum Value {
     Null,
 }
 
+impl ToString for Value {
+    fn to_string(&self) -> String {
+        match self {
+            Value::String(s) => s.clone(),
+            Value::Bool(b) => b.to_string(),
+            Value::Usize(u) => u.to_string(),
+            Value::Missing(_) => String::new(),
+            Value::Null => String::new(),
+        }
+    }
+}
+
 pub struct Netlify {
     user_agent: String,
     token: String,
@@ -28,8 +40,8 @@ pub struct Netlify {
 }
 
 pub struct SiteDetails {
-    name: String,
-    url: String,
+    pub name: String,
+    pub url: String,
 }
 
 impl Netlify {
@@ -44,9 +56,6 @@ impl Netlify {
             env!("CARGO_PKG_VERSION"),
         );
 
-        // define the token
-        let token: &str = "nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c";
-
         // define the base URL
         let base_url: String = String::from("https://api.netlify.com/api/v1/");
 
@@ -58,22 +67,22 @@ impl Netlify {
 
     }
 
-    pub async fn get_site_details(netlify: Netlify, id: &str) -> Result<(), Box<dyn std::error::Error>>  {
+    pub async fn get_site_details(&self, id: &str) -> Result<(), Box<dyn std::error::Error>>  {
 
         println!("Getting site info for site id: {}", id);
     
-        let request_url = netlify.url + "sites/" + id;
+        let request_url = self.url.clone() + "sites/" + id;
     
         // create the builder and client
         let builder = ClientBuilder::new();                
         let client = builder
-            .user_agent(netlify.user_agent)
+            .user_agent(&self.user_agent)
             .build()
             .unwrap();
     
         // make the request passing in the token
         let resp = client.get(request_url)
-            .bearer_auth(netlify.token)
+            .bearer_auth(&self.token)
             .send()
             .await?
             .json::<HashMap<String, Value>>()
@@ -88,27 +97,60 @@ impl Netlify {
         Ok(())
     }
     
-    pub async fn get_sites() -> Result<(), Box<dyn std::error::Error>>  {    
+    pub async fn get_sites(&self) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>>  {    
     
         println!("Connecting to Netlify API...");
-        let request_url = BASE_URL.to_owned() + "sites";
+        let request_url = self.url.clone() + "sites";
+        println!("Request URL: {:?}", request_url);
     
         // create the builder and client
         let builder = ClientBuilder::new();                
         let client = builder
-            .user_agent(APP_USER_AGENT)
+            .user_agent(&self.user_agent)
             .build()
             .unwrap();
+
+        println!("Client built.");
     
         // make the request passing in the token
         let resp = client.get(request_url)
-            .bearer_auth(TOKEN)
+            .bearer_auth(&self.token)
             .send()
             .await?
             .json::<HashMap<String, Value>>()
             .await?;
-    
-        Ok(())
+
+        println!("Response received.");
+
+        // loop through the response and store certain fields in vector that make up the details of a 'site' struct
+        let mut sites: Vec<SiteDetails> = Vec::new();
+        for (key, value) in resp.iter() {
+            println!("Key: {:?}, Value: {:?}", key, value);
+            
+            let mut name = String::new();
+            let mut url = String::new();
+
+            if key.to_string() == "name" {
+                name = value.to_string();
+            } else if key.to_string() == "url" {
+                url = value.to_string();
+            }
+
+            if name == "" || url == "" {
+                continue;
+            }
+
+            let site = SiteDetails {
+                name: name,
+                url: url,
+            };
+
+            println!("Site name: {:?}", site.name);
+
+            sites.push(site);
+        }
+
+        Ok(sites)
     }
 
 }
