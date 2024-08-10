@@ -1,7 +1,7 @@
 /// Netlify Module
 /// Used to interact with the Netlify API
 
-/// TODO - Add site request is written but I can't parse the response just yet
+/// TODO - Add site request works but name does not get set for new site, probably bad JSON
 /// TODO - Update a site request
 /// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
 /// TODO - Delete a site request
@@ -84,10 +84,12 @@ impl Netlify {
 
     /// Add a new site
     /// Returns a Result containing a vector of SiteDetails or an error
-    pub async fn add_site(
+    pub async fn create_site(
         &self, 
         site_name: String
-    ) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>> {
+    ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
+
+        println!("Creating site: {}", site_name);
 
         // create the url
         let request_url = self.url.clone() + "sites";
@@ -99,8 +101,8 @@ impl Netlify {
             "processing_settings": {
                 "html": {
                     "pretty_urls": true
-                }
-            }
+                },
+            },
         });
         println!("JSON: {}", json.to_string());
         // build and send the request
@@ -110,7 +112,7 @@ impl Netlify {
             request_url, 
             json.to_string()
         ).await;
-        self.read_response(response).await
+        self.read_create_response(response).await
     }
 
     /// Create a reqwest::Client
@@ -167,22 +169,94 @@ impl Netlify {
 
         match response {
             Ok(resp) => {
+
+                // println!("Response: {:?}", resp);
                 
                 if resp.status().is_success() {
 
+                    // the fancy serde_json way
                     let json: serde_json::Value = resp.json().await?;
-                    println!("JSON Response: {:?}", json);
+                    println!("JSON Response: {:?}", json);    
 
-                    // let sites: Vec<SiteDetails> = resp.json().await?;
+                    let sites: Vec<SiteDetails> = serde_json::from_value(json)?;
+                    Ok(sites)
 
-                    if let Some(sites) = json.as_array() {
-                        let sites: Vec<SiteDetails> = serde_json::from_value(serde_json::Value::Array(sites.clone()))?;
-                        return Ok(sites);
-                    } else {
-                        return Err("Expected an array of sites".into());
-                    }
+                    // the classic way that works for get requests
+                    // let sites: Vec<SiteDetails> = resp
+                    //     .json()
+                    //     .await?;
 
-                    // return Ok(sites);
+                    // still having trouble parsing this
+                    // if let Some(sites) = json.as_array() {
+                    //     let sites: Vec<SiteDetails> = 
+                    //         serde_json::from_value(
+                    //             serde_json::Value::Array(
+                    //                 sites.clone()
+                    //             )
+                    //         )?;
+                    //     return Ok(sites);
+                    // } else {
+                    //     return Err("Failed to parse sites".into());
+                    // }
+
+                } else {
+                    println!("Failed to get sites: {}", resp.status());
+                    return Err(
+                        format!(
+                            "Failed to get sites: {}", 
+                            resp.status()
+                        ).into()
+                    );
+                }
+            }
+            Err(e) => {
+                println!("Failed to get sites: {:?}", e);
+                return Err(format!("Failed to get sites: {:?}", e).into());
+            }
+        }
+    }
+
+    /// Read the response from the Netlify API
+    /// response: The response from the Netlify API
+    /// Returns a Result containing a vector of SiteDetails or an error
+    async fn read_create_response(
+        &self,
+        response: Result<reqwest::Response, Box<dyn std::error::Error>>,
+    ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
+        println!("Reading Response...");
+
+        match response {
+            Ok(resp) => {
+
+                // println!("Response: {:?}", resp);
+                
+                if resp.status().is_success() {
+
+                    // the fancy serde_json way
+                    let json: serde_json::Value = resp.json().await?;
+                    println!("JSON Response: {:?}", json);    
+
+                    let sites: SiteDetails = serde_json::from_value(json)?;
+                    Ok(sites)
+
+                    // the classic way that works for get requests
+                    // let sites: Vec<SiteDetails> = resp
+                    //     .json()
+                    //     .await?;
+
+                    // still having trouble parsing this
+                    // if let Some(sites) = json.as_array() {
+                    //     let sites: Vec<SiteDetails> = 
+                    //         serde_json::from_value(
+                    //             serde_json::Value::Array(
+                    //                 sites.clone()
+                    //             )
+                    //         )?;
+                    //     return Ok(sites);
+                    // } else {
+                    //     return Err("Failed to parse sites".into());
+                    // }
+
                 } else {
                     println!("Failed to get sites: {}", resp.status());
                     return Err(
