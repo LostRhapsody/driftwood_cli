@@ -7,6 +7,7 @@
 /// TODO - Delete a site request
 /// TODO: Update the Netlify lib so it uses OAuth2 instead of a token
 use serde::Deserialize;
+use std::collections::HashMap;
 
 /// Netlify struct
 /// Contains the user agent, token, and base URL for the Netlify API
@@ -14,6 +15,11 @@ pub struct Netlify {
     user_agent: String,
     token: String,
     url: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct Payload {
+    pub name: String,
 }
 
 /// SiteDetails struct
@@ -55,7 +61,7 @@ impl Netlify {
     /// Get the details of a site
     /// id: The ID of the site
     /// Returns a Result containing a vector of SiteDetails or an error
-    pub async fn get_site_details(
+    pub fn get_site_details(
         &self,
         id: &str,
     ) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>> {
@@ -66,15 +72,15 @@ impl Netlify {
         let request_url = self.url.clone() + "sites/" + id;
         // build and send the request
         let client = self.build_client();
-        let response = self.send_get_request(client, request_url).await;
+        let response = self.send_get_request(client, request_url);
         // return the response
-        self.read_array_response(response).await
+        self.read_array_response(response)
 
     }
 
     /// Get all the sites for the user
     /// Returns a Result containing a vector of SiteDetails or an error
-    pub async fn get_sites(
+    pub fn get_sites(
         &self
     ) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>> {
 
@@ -84,15 +90,15 @@ impl Netlify {
         let request_url = self.url.clone() + "sites";
         // build and send the request
         let client = self.build_client();
-        let response = self.send_get_request(client, request_url).await;
+        let response = self.send_get_request(client, request_url);
         // return the response
-        self.read_array_response(response).await
+        self.read_array_response(response)
 
     }
 
     /// Add a new site
     /// Returns a Result containing a vector of SiteDetails or an error
-    pub async fn create_site(
+    pub fn create_site(
         &self, 
         site_name: String
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
@@ -102,33 +108,43 @@ impl Netlify {
         // create the url
         let request_url = self.url.clone() + "sites";
         // create the request body
-        let json = serde_json::json!(
+        let json = r#"
         {
-            "name": site_name,
+            "name": "testSite6",
             "ssl": true,
             "processing_settings": {
                 "html": {
                     "pretty_urls": true
                 },
             },
-        });
-        println!("JSON: {}", json.to_string());
+        }"#.to_string();
+        // let json = serde_json::json!(
+        // {
+        //     "name": site_name,
+        //     "ssl": true,
+        //     "processing_settings": {
+        //         "html": {
+        //             "pretty_urls": true
+        //         },
+        //     },
+        // });
+        // println!("JSON: {}", json.to_string());
         // build and send the request
         let client = self.build_client();
         let response = self.send_post_request(
             client, 
             request_url, 
-            json.to_string()
-        ).await;
+            json
+        );
         // return the response
-        self.read_object_response(response).await
+        self.read_object_response(response)
     }
 
     /// Create a reqwest::Client
     /// Returns a reqwest::Client
-    fn build_client(&self) -> reqwest::Client {
+    fn build_client(&self) -> reqwest::blocking::Client {
         println!("> Building Client...");
-        let builder = reqwest::ClientBuilder::new();
+        let builder = reqwest::blocking::ClientBuilder::new();
         let client = builder.user_agent(&self.user_agent).build().unwrap();
         client
     }
@@ -137,44 +153,67 @@ impl Netlify {
     /// client: The reqwest::Client to use
     /// request_url: The URL to send the request to
     /// Returns a Result containing a reqwest::Response or an error
-    async fn send_get_request(
+    fn send_get_request(
         &self,
-        client: reqwest::Client,
+        client: reqwest::blocking::Client,
         request_url: String,
-    ) -> Result<reqwest::Response, Box<dyn std::error::Error>> {
+    ) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
+        
         println!("> Sending GET request to: {}", request_url);
+
         let response = client
             .get(request_url)
             .bearer_auth(&self.token)
-            .send()
-            .await?;
+            .send()?;
+        
         Ok(response)
+    
     }
 
-    async fn send_post_request(
+    fn send_post_request(
         &self,
-        client: reqwest::Client,
+        client: reqwest::blocking::Client,
         request_url: String,
         json: String,
-    ) -> Result<reqwest::Response, Box<dyn std::error::Error>> {
-        println!("> Sending POST request to: {}", request_url);        
-        let response = client
+    ) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
+        
+        println!("> Sending POST request to: {}", request_url);     
+
+        // let mut json_map = HashMap::new();
+        // json_map.insert("name", "testSite6");   
+
+        let payload = Payload {
+            name: "testSite6".to_string(),
+        };
+
+        let json_payload = serde_json::to_string(&payload)?;
+        println!("JSON Payload: {}", json_payload);
+
+        std::fs::write("src/test.json", json_payload)?;
+        let file = std::fs::File::open("src/test.json")?;
+        let file_contents = std::fs::read_to_string("src/test.json")?;
+        println!("File Contents: {}", file_contents);
+        
+        let request = client
             .post(request_url)
             .bearer_auth(&self.token)
-            .header("Content-Type", "application/json;UTF-8")
-            .body(json)
-            .send()
-            .await?;
+            // .json(&payload)
+            .headers(Netlify::build_request_headers())
+            .body(file);
+            // .send()?;
 
+        println!("Request: {:?}", request);
+        let response = request.send()?;
         Ok(response)
+    
     }    
 
     /// Read the response from the Netlify API (array)
     /// response: The response from the Netlify API
     /// Returns a Result containing a vector of SiteDetails or an error
-    async fn read_array_response(
+    fn read_array_response(
         &self,
-        response: Result<reqwest::Response, Box<dyn std::error::Error>>,
+        response: Result<reqwest::blocking::Response, Box<dyn std::error::Error>>,
     ) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>> {
         println!("> Reading Response (array)...");
 
@@ -185,7 +224,7 @@ impl Netlify {
                 
                 if resp.status().is_success() {
 
-                    let json: serde_json::Value = resp.json().await?;
+                    let json: serde_json::Value = resp.json()?;
                     let sites: Vec<SiteDetails> = serde_json::from_value(json)?;
                     Ok(sites)
 
@@ -209,9 +248,9 @@ impl Netlify {
     /// Read the response from the Netlify API (single object)
     /// response: The response from the Netlify API
     /// Returns a Result containing a vector of SiteDetails or an error
-    async fn read_object_response(
+    fn read_object_response(
         &self,
-        response: Result<reqwest::Response, Box<dyn std::error::Error>>,
+        response: Result<reqwest::blocking::Response, Box<dyn std::error::Error>>,
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
         println!("> Reading Response (object)...");
 
@@ -220,7 +259,7 @@ impl Netlify {
 
                 if resp.status().is_success() {
 
-                    let json: serde_json::Value = resp.json().await?;
+                    let json: serde_json::Value = resp.json()?;
                     let sites: SiteDetails = serde_json::from_value(json)?;
                     Ok(sites)
 
@@ -239,5 +278,18 @@ impl Netlify {
                 return Err(format!("> Request failed: {:?}", e).into());
             }
         }
+    }
+
+    fn build_request_headers() -> reqwest::header::HeaderMap {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::CONTENT_TYPE,
+            reqwest::header::HeaderValue::from_static("application/json"),
+        );
+        headers.insert(
+            reqwest::header::CONTENT_LENGTH,
+            reqwest::header::HeaderValue::from_static("20"),
+        );
+        headers
     }
 }
