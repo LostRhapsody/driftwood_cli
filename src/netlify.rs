@@ -33,7 +33,7 @@ impl Netlify {
     /// token: The Netlify API token
     /// Returns a Netlify struct
     pub fn new(token: &str) -> Netlify {
-        println!("Creating Netlify API Struct...");
+        println!("> Creating Netlify API Struct");
 
         // define the user agent
         let user_agent: &str = concat!(
@@ -59,13 +59,17 @@ impl Netlify {
         &self,
         id: &str,
     ) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>> {
+
+        println!("> Getting site details for: {}", id);
+        
         // create the url
         let request_url = self.url.clone() + "sites/" + id;
         // build and send the request
         let client = self.build_client();
         let response = self.send_get_request(client, request_url).await;
+        // return the response
+        self.read_array_response(response).await
 
-        self.read_response(response).await
     }
 
     /// Get all the sites for the user
@@ -73,13 +77,17 @@ impl Netlify {
     pub async fn get_sites(
         &self
     ) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>> {
+
+        println!("> Getting all site details");
+
         // create the url
         let request_url = self.url.clone() + "sites";
         // build and send the request
         let client = self.build_client();
         let response = self.send_get_request(client, request_url).await;
+        // return the response
+        self.read_array_response(response).await
 
-        self.read_response(response).await
     }
 
     /// Add a new site
@@ -89,7 +97,7 @@ impl Netlify {
         site_name: String
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
 
-        println!("Creating site: {}", site_name);
+        println!("> Creating site: {}", site_name);
 
         // create the url
         let request_url = self.url.clone() + "sites";
@@ -112,13 +120,14 @@ impl Netlify {
             request_url, 
             json.to_string()
         ).await;
-        self.read_create_response(response).await
+        // return the response
+        self.read_object_response(response).await
     }
 
     /// Create a reqwest::Client
     /// Returns a reqwest::Client
     fn build_client(&self) -> reqwest::Client {
-        println!("Building Client...");
+        println!("> Building Client...");
         let builder = reqwest::ClientBuilder::new();
         let client = builder.user_agent(&self.user_agent).build().unwrap();
         client
@@ -133,7 +142,7 @@ impl Netlify {
         client: reqwest::Client,
         request_url: String,
     ) -> Result<reqwest::Response, Box<dyn std::error::Error>> {
-        println!("Sending GET request to: {}", request_url);
+        println!("> Sending GET request to: {}", request_url);
         let response = client
             .get(request_url)
             .bearer_auth(&self.token)
@@ -148,24 +157,26 @@ impl Netlify {
         request_url: String,
         json: String,
     ) -> Result<reqwest::Response, Box<dyn std::error::Error>> {
-        println!("Sending POST request to: {}", request_url);        
+        println!("> Sending POST request to: {}", request_url);        
         let response = client
             .post(request_url)
             .bearer_auth(&self.token)
+            .header("Content-Type", "application/json;UTF-8")
             .body(json)
             .send()
             .await?;
+
         Ok(response)
     }    
 
-    /// Read the response from the Netlify API
+    /// Read the response from the Netlify API (array)
     /// response: The response from the Netlify API
     /// Returns a Result containing a vector of SiteDetails or an error
-    async fn read_response(
+    async fn read_array_response(
         &self,
         response: Result<reqwest::Response, Box<dyn std::error::Error>>,
     ) -> Result<Vec<SiteDetails>, Box<dyn std::error::Error>> {
-        println!("Reading Response...");
+        println!("> Reading Response (array)...");
 
         match response {
             Ok(resp) => {
@@ -174,102 +185,58 @@ impl Netlify {
                 
                 if resp.status().is_success() {
 
-                    // the fancy serde_json way
                     let json: serde_json::Value = resp.json().await?;
-                    println!("JSON Response: {:?}", json);    
-
                     let sites: Vec<SiteDetails> = serde_json::from_value(json)?;
                     Ok(sites)
 
-                    // the classic way that works for get requests
-                    // let sites: Vec<SiteDetails> = resp
-                    //     .json()
-                    //     .await?;
-
-                    // still having trouble parsing this
-                    // if let Some(sites) = json.as_array() {
-                    //     let sites: Vec<SiteDetails> = 
-                    //         serde_json::from_value(
-                    //             serde_json::Value::Array(
-                    //                 sites.clone()
-                    //             )
-                    //         )?;
-                    //     return Ok(sites);
-                    // } else {
-                    //     return Err("Failed to parse sites".into());
-                    // }
-
                 } else {
-                    println!("Failed to get sites: {}", resp.status());
+                    println!("> Request failed: {}", resp.status());
                     return Err(
                         format!(
-                            "Failed to get sites: {}", 
+                            "> Request failed: {}", 
                             resp.status()
                         ).into()
                     );
                 }
             }
             Err(e) => {
-                println!("Failed to get sites: {:?}", e);
-                return Err(format!("Failed to get sites: {:?}", e).into());
+                println!("> Request failed: {:?}", e);
+                return Err(format!("> Request failed: {:?}", e).into());
             }
         }
     }
 
-    /// Read the response from the Netlify API
+    /// Read the response from the Netlify API (single object)
     /// response: The response from the Netlify API
     /// Returns a Result containing a vector of SiteDetails or an error
-    async fn read_create_response(
+    async fn read_object_response(
         &self,
         response: Result<reqwest::Response, Box<dyn std::error::Error>>,
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
-        println!("Reading Response...");
+        println!("> Reading Response (object)...");
 
         match response {
             Ok(resp) => {
 
-                // println!("Response: {:?}", resp);
-                
                 if resp.status().is_success() {
 
-                    // the fancy serde_json way
                     let json: serde_json::Value = resp.json().await?;
-                    println!("JSON Response: {:?}", json);    
-
                     let sites: SiteDetails = serde_json::from_value(json)?;
                     Ok(sites)
 
-                    // the classic way that works for get requests
-                    // let sites: Vec<SiteDetails> = resp
-                    //     .json()
-                    //     .await?;
-
-                    // still having trouble parsing this
-                    // if let Some(sites) = json.as_array() {
-                    //     let sites: Vec<SiteDetails> = 
-                    //         serde_json::from_value(
-                    //             serde_json::Value::Array(
-                    //                 sites.clone()
-                    //             )
-                    //         )?;
-                    //     return Ok(sites);
-                    // } else {
-                    //     return Err("Failed to parse sites".into());
-                    // }
-
                 } else {
-                    println!("Failed to get sites: {}", resp.status());
+                    println!("> Request failed: {}", resp.status());
                     return Err(
                         format!(
-                            "Failed to get sites: {}", 
+                            "> Request failed: {}", 
                             resp.status()
                         ).into()
                     );
                 }
             }
             Err(e) => {
-                println!("Failed to get sites: {:?}", e);
-                return Err(format!("Failed to get sites: {:?}", e).into());
+                println!("> Request failed: {:?}", e);
+                return Err(format!("> Request failed: {:?}", e).into());
             }
         }
     }
