@@ -7,7 +7,6 @@
 /// TODO - Delete a site request
 /// TODO: Update the Netlify lib so it uses OAuth2 instead of a token
 use serde::Deserialize;
-use std::collections::HashMap;
 
 /// Netlify struct
 /// Contains the user agent, token, and base URL for the Netlify API
@@ -50,6 +49,7 @@ impl Netlify {
 
         // define the base URL
         let base_url: String = String::from("https://api.netlify.com/api/v1/");
+        // let base_url: String = String::from("http://127.0.0.1:3000/echo");
 
         Netlify {
             user_agent: user_agent.to_string(),
@@ -107,28 +107,19 @@ impl Netlify {
 
         // create the url
         let request_url = self.url.clone() + "sites";
+
         // create the request body
-        let json = r#"
+        let json = serde_json::json!(
         {
-            "name": "testSite6",
+            "name": site_name,
             "ssl": true,
             "processing_settings": {
                 "html": {
                     "pretty_urls": true
                 },
             },
-        }"#.to_string();
-        // let json = serde_json::json!(
-        // {
-        //     "name": site_name,
-        //     "ssl": true,
-        //     "processing_settings": {
-        //         "html": {
-        //             "pretty_urls": true
-        //         },
-        //     },
-        // });
-        // println!("JSON: {}", json.to_string());
+        });
+
         // build and send the request
         let client = self.build_client();
         let response = self.send_post_request(
@@ -136,6 +127,7 @@ impl Netlify {
             request_url, 
             json
         );
+
         // return the response
         self.read_object_response(response)
     }
@@ -143,9 +135,11 @@ impl Netlify {
     /// Create a reqwest::Client
     /// Returns a reqwest::Client
     fn build_client(&self) -> reqwest::blocking::Client {
-        println!("> Building Client...");
+        println!("> Building Builder...");
         let builder = reqwest::blocking::ClientBuilder::new();
+        println!("> Building Client...");
         let client = builder.user_agent(&self.user_agent).build().unwrap();
+        println!("> Done building client...");
         client
     }
 
@@ -174,36 +168,19 @@ impl Netlify {
         &self,
         client: reqwest::blocking::Client,
         request_url: String,
-        json: String,
+        json: serde_json::Value,
     ) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
         
         println!("> Sending POST request to: {}", request_url);     
 
-        // let mut json_map = HashMap::new();
-        // json_map.insert("name", "testSite6");   
-
-        let payload = Payload {
-            name: "testSite6".to_string(),
-        };
-
-        let json_payload = serde_json::to_string(&payload)?;
-        println!("JSON Payload: {}", json_payload);
-
-        std::fs::write("src/test.json", json_payload)?;
-        let file = std::fs::File::open("src/test.json")?;
-        let file_contents = std::fs::read_to_string("src/test.json")?;
-        println!("File Contents: {}", file_contents);
-        
-        let request = client
+        let response = client
             .post(request_url)
             .bearer_auth(&self.token)
-            // .json(&payload)
+            .json(&json)
             .headers(Netlify::build_request_headers())
-            .body(file);
-            // .send()?;
+            .send()?;
+            // .body(json.to_string())
 
-        println!("Request: {:?}", request);
-        let response = request.send()?;
         Ok(response)
     
     }    
