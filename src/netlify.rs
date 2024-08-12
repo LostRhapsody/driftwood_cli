@@ -1,11 +1,10 @@
 /// Netlify Module
 /// Used to interact with the Netlify API
 
-/// TODO - Add site request works but name does not get set for new site, probably bad JSON
 /// TODO - Update a site request
 /// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
 /// TODO - Delete a site request
-/// TODO: Update the Netlify lib so it uses OAuth2 instead of a token
+/// TODO - Update the Netlify lib so it uses OAuth2 instead of a token
 use serde::Deserialize;
 
 /// Netlify struct
@@ -49,7 +48,8 @@ impl Netlify {
 
         // define the base URL
         let base_url: String = String::from("https://api.netlify.com/api/v1/");
-        // let base_url: String = String::from("http://127.0.0.1:3000/echo");
+        // test URL, sends an echo to a test endpoint and responds with the request data        
+        // let base_url: String = String::from("https://echo.free.beeceptor.com");
 
         Netlify {
             user_agent: user_agent.to_string(),
@@ -109,16 +109,7 @@ impl Netlify {
         let request_url = self.url.clone() + "sites";
 
         // create the request body
-        let json = serde_json::json!(
-        {
-            "name": site_name,
-            "ssl": true,
-            "processing_settings": {
-                "html": {
-                    "pretty_urls": true
-                },
-            },
-        });
+        let json = serde_json::json!({"name": site_name,});
 
         // build and send the request
         let client = self.build_client();
@@ -135,12 +126,14 @@ impl Netlify {
     /// Create a reqwest::Client
     /// Returns a reqwest::Client
     fn build_client(&self) -> reqwest::blocking::Client {
+
         println!("> Building Builder...");
         let builder = reqwest::blocking::ClientBuilder::new();
         println!("> Building Client...");
         let client = builder.user_agent(&self.user_agent).build().unwrap();
         println!("> Done building client...");
         client
+        
     }
 
     /// Send a request to the Netlify API
@@ -164,6 +157,11 @@ impl Netlify {
     
     }
 
+    /// Send a POST request to the Netlify API
+    /// client: The reqwest::Client to use
+    /// request_url: The URL to send the request to
+    /// json: The JSON to send in the request
+    /// Returns a Result containing a reqwest::Response or an error
     fn send_post_request(
         &self,
         client: reqwest::blocking::Client,
@@ -173,13 +171,13 @@ impl Netlify {
         
         println!("> Sending POST request to: {}", request_url);     
 
-        let response = client
+        let request = client
             .post(request_url)
             .bearer_auth(&self.token)
             .json(&json)
-            .headers(Netlify::build_request_headers())
-            .send()?;
-            // .body(json.to_string())
+            .headers(Netlify::build_request_headers());
+
+        let response = request.send()?;        
 
         Ok(response)
     
@@ -229,10 +227,17 @@ impl Netlify {
         &self,
         response: Result<reqwest::blocking::Response, Box<dyn std::error::Error>>,
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
-        println!("> Reading Response (object)...");
+        println!("> Reading Response (object)...");        
 
         match response {
             Ok(resp) => {
+
+                if resp.status() == 422 {
+                    println!("> Request failed with a status of 422.");
+                    println!("> Confirm the site name is valid and unique.");
+                    println!(concat!("> Note: 422 means 'unprocessable entity', but",
+                    " it could just be your site name is already being used."));
+                }
 
                 if resp.status().is_success() {
 
@@ -257,15 +262,12 @@ impl Netlify {
         }
     }
 
+    /// Build the headers for the POST request, specifically create_site
     fn build_request_headers() -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::CONTENT_TYPE,
             reqwest::header::HeaderValue::from_static("application/json"),
-        );
-        headers.insert(
-            reqwest::header::CONTENT_LENGTH,
-            reqwest::header::HeaderValue::from_static("20"),
         );
         headers
     }

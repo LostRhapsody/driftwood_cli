@@ -1,87 +1,22 @@
-use http_body_util::Empty;
-use http_body_util::BodyExt;
-use hyper::body;
-use hyper::body::Body;
-use hyper::Request;
-use hyper::body::Bytes;
-use hyper_util::rt::TokioIo;
-use tokio::net::TcpStream;
-use tokio::io::{AsyncWriteExt as _, self};
-
 pub mod cli;
 pub mod netlify;
 
 use netlify::{
     Netlify,
     SiteDetails,
-    Payload,
 };
 
 // #[tokio::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+  
+    cli::draw_menu();
+    // let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
 
-    //vvvv Trying to send a request manually with hyper vvvv
-
-    // let url = "https://api.netlify.com/api/v1/sites".parse::<hyper::Uri>()?;
-    // let url = "http://httpbin.org/ip".parse::<hyper::Uri>()?;
-    
-    // let host = url.host().expect("uri has no host");
-
-    // let port = url.port_u16().unwrap_or(80);
-
-    // let address = format!("{}:{}", host, port);
-
-    // let stream = TcpStream::connect(address).await?;
-
-    // let io = TokioIo::new(stream);
-
-    // let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-
-    // tokio::task::spawn(async move {
-    //     if let Err(err) = conn.await {
-    //         println!("Connection failed: {:?}", err);
-    //     }
-    // });
-
-    // let authority = url.authority().unwrap().clone();
-
-    // let payload = Payload {
-    //     name: String::from("testSite6"),
-    // };
-
-    // // Serialize the payload to JSON
-    // let json_payload = serde_json::to_string(&payload)?;
-    
-    // // Convert the JSON string to bytes
-    // let body = Body::from(json_payload);
-    
-    // let req = Request::builder()
-    //     .uri(url)
-    //     .header(hyper::header::HOST, authority.as_str())
-    //     .body(body)?;
-
-    // let mut res = sender.send_request(req).await?;
-
-    // println!("Response status: {}", res.status());
-    
-    // while let Some(next) = res.frame().await {
-    //     let frame = next?;
-    //     if let Some(chunk) = frame.data_ref() {
-    //         io::stdout().write_all(chunk).await?;
-    //     }
-    // }
-
-    //^^^^ Trying to send a request manually with hyper ^^^^
-
-    
-    // cli::draw_menu();
-    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
-
+    // vv easy netlify tests
     // Get all the sites
     // let _ = get_sites(netlify);
-
     // Create a new site
-    let _ = create_site(netlify,String::from("testSite6"));
+    // let _ = create_site(netlify,String::from("testSite25"));
 
     Ok(())
 }

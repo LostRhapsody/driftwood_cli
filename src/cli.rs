@@ -1,13 +1,19 @@
+/// TODO - Change publish verbage to create site
+
 use std::{
     io::Write,
     fs,
+    path::Path,
 };
 
-use driftwood::{
-    Post,
-};
+use driftwood::Post;
 
 use chrono;
+
+use crate::netlify::{
+    Netlify,
+    SiteDetails,
+};
 
 /// Draws the menu and all the options
 pub fn draw_menu(){    
@@ -61,6 +67,12 @@ fn create_post() {
     // needs to be at least 1 characters long
     if !check_input_length(&input, 2) {return;}
 
+    let path = Path::new("posts");
+
+    if !path.exists() {
+        fs::create_dir(path).expect("Failed to create 'posts' directory");
+    }
+
     let title = input.trim().to_string() + ".md";
     let filename = "posts/".to_string() + title.clone().as_str();
 
@@ -101,8 +113,10 @@ fn publish_website(){
     if !check_input_length(&input, 2) {return;}
 
     let website_name = input.trim().to_string();
-    // println!("Pretending to publish site `{}` to netlify lol", website_name);
-    // let _ = netlify::connect_to_api();
+    
+    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let _ = create_site(netlify,website_name);
+
     println!("Press enter to return to the main menu.");
     print!("> ");
     std::io::stdin().read_line(&mut input).unwrap();
@@ -154,4 +168,25 @@ fn convert_md_to_html_cli(){
     println!("Press enter to return to the main menu.");
     print!("> ");
     std::io::stdin().read_line(&mut input).unwrap();
+}
+
+/// Add a new site
+/// netlify: A Netlify instance
+/// site_name: The name of the site to create
+/// Returns a vector of SiteDetails
+fn create_site(
+    netlify: Netlify, 
+    site_name: String
+) -> Result<SiteDetails, Box<dyn std::error::Error>>{
+    match netlify.create_site(site_name) {
+        Ok(sites) => {
+            println!("> Site Details:");
+            println!("> {:?}", sites);
+            Ok(sites)
+        }
+        Err(e) => {
+            println!("> Error: {:?}", e);
+            Err(e)
+        }
+    }
 }
