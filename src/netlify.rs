@@ -299,8 +299,10 @@ impl Netlify {
                 if resp.status() == 422 {
                     println!("> Request failed with a status of 422.");
                     println!("> Confirm the site name is valid and unique.");
-                    println!(concat!("> Note: 422 means 'unprocessable entity', but",
-                    " it could just be your site name is already being used."));
+                    println!(concat!("> !!!Note: 422 means 'unprocessable ",
+                    "entity', but it could just be your site name is already ",
+                    "being used. Try a different, more unique name.!!!"
+                    ));
                 }
 
                 if resp.status().is_success() {
