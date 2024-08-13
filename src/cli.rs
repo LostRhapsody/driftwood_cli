@@ -1,10 +1,13 @@
+/// TODO - make a standard function for writing out menus to reduce repeat code
+/// TODO - make a standard function for reading input to reduce repeat code
+/// TODO - Rebuild the navigation so users can go back and forth between menus easier
 use std::{fs, io::Write, path::Path};
 
 use driftwood::Post;
 
 use chrono;
 
-use crate::netlify::{Netlify, SiteDetails};
+use crate::netlify::{Netlify, SiteDetails, Ssl_Cert};
 
 /// Draws the menu and all the options
 pub fn draw_menu() {
@@ -95,6 +98,7 @@ fn create_website() {
     println!("Create a website");
     println!("---------------------------------------");
     println!("Enter the name of your website.");
+    println!("Note: Special characters, spaces, and punctuation will be replaced with a dash '-'.");
     println!("Type 'exit' to return to the main menu.");
     print!("> ");
     std::io::stdout().flush().unwrap();
@@ -163,22 +167,19 @@ fn list_websites() {
         update_site(site.unwrap());
     }
 
-    println!("Press enter to return to the main menu.");
-    print!("> ");
-    std::io::stdin().read_line(&mut input).unwrap();
-
 }
 
 fn update_site(site:&SiteDetails) {
-
-    // grab all the sites
-    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    
     print!("\x1B[2J\x1B[1;1H");
     println!("Name: {}", site.name.clone().unwrap());
     println!("Id: {}", site.name.clone().unwrap());
     println!("URL: {}", site.name.clone().unwrap());
+    println!("SSL: {}", site.ssl.clone().unwrap());
     println!("---------------------------------------");
-    println!("Type a new name to update the site's name.");
+    println!("Options:");
+    println!("1. Update the site's name");
+    println!("2. Create an SSL certificate for the site");
     println!("Type 'exit' to return to the main menu.");
     print!("> ");
     std::io::stdout().flush().unwrap();
@@ -193,6 +194,33 @@ fn update_site(site:&SiteDetails) {
 
     if !check_input_length(&input, 2) {
         return;
+    }    
+
+    match input.trim() {
+        "1" => update_site_name(site),
+        "2" => create_ssl_certificate(site),
+        _ => println!("Invalid option. Returning to main menu."),
+    }
+
+}
+
+fn update_site_name(site:&SiteDetails){
+
+    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    print!("\x1B[2J\x1B[1;1H");
+    println!("Name: {}", site.name.clone().unwrap());
+    println!("Enter the new name of your website.");
+    println!("Note: Special characters, spaces, and punctuation will be replaced with a dash '-'.");
+    println!("Type 'exit' to return to the main menu.");
+    print!("> ");
+    std::io::stdout().flush().unwrap();
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+
+    // Process the input here
+    if input.trim() == "exit" {
+        return;
     }
 
     let site_name = input.trim().to_string();
@@ -200,6 +228,7 @@ fn update_site(site:&SiteDetails) {
     let new_site = SiteDetails {
         name: Some(site_name),
         id: site.id.clone(),
+        ssl: site.ssl.clone(),
         url: site.url.clone(),
         screenshot_url: site.screenshot_url.clone(),
     };
@@ -207,6 +236,7 @@ fn update_site(site:&SiteDetails) {
     let existing_site = SiteDetails {
         name: site.name.clone(),
         id: site.id.clone(),
+        ssl: site.ssl.clone(),
         url: site.url.clone(),
         screenshot_url: site.screenshot_url.clone(),
     };
@@ -215,12 +245,59 @@ fn update_site(site:&SiteDetails) {
 
 }
 
+fn create_ssl_certificate(site:&SiteDetails){
+    print!("\x1B[2J\x1B[1;1H");
+    println!("Enter the details for your SSL certificate.");
+    println!("Type 'exit' to return to the main menu.");
+    print!("Certificate > ");
+    std::io::stdout().flush().unwrap();
+
+    let mut input = String::new();
+
+    std::io::stdin().read_line(&mut input).unwrap();
+    if input.trim() == "exit" { return; }
+    let certificate = input.trim().to_string();
+    print!("Key > ");
+    std::io::stdout().flush().unwrap();
+    std::io::stdin().read_line(&mut input).unwrap();
+    if input.trim() == "exit" { return; }
+    let key = input.trim().to_string();
+    print!("CA > ");
+    std::io::stdout().flush().unwrap();
+    std::io::stdin().read_line(&mut input).unwrap();
+    if input.trim() == "exit" { return; }
+    let ca = input.trim().to_string();
+    println!("Creating SSL certificate for site: {}", site.name.clone().unwrap());    
+    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let current_site = SiteDetails {
+        name: site.name.clone(),
+        id: site.id.clone(),
+        ssl: Some(true),
+        url: site.url.clone(),
+        screenshot_url: site.screenshot_url.clone(),
+    };
+
+    let new_ssl_details  = Ssl_Cert{
+        cert: Some(certificate),
+        key: Some(key),
+        ca_cert: Some(ca),
+    };
+
+    let _ = provision_ssl(netlify,  current_site, new_ssl_details);
+    let mut input = String::new();
+    println!("Press enter to return to the main menu.");
+    print!("> ");
+    std::io::stdout().flush().unwrap();
+    std::io::stdin().read_line(&mut input).unwrap();
+}
+
 fn check_input_length(input: &str, length: usize) -> bool {
     let mut success = true;
     // needs to be at least length characters long
     if input.len() < length {
         println!("Invalid entry");
         println!("Press enter to return to the main menu.");
+        print!("> ");
         std::io::stdin().read_line(&mut String::new()).unwrap();
         success = false;
     }
@@ -277,6 +354,7 @@ fn create_site(
         name: Some(site_name),
         id: None,
         url: None,
+        ssl: None,
         screenshot_url: None,
     }) {
         Ok(sites) => {
@@ -321,10 +399,27 @@ fn update_site_details(
 ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
     match netlify.update_site(existing_site_details, new_site_details) {
         Ok(site) => {
-            println!("Done");
-            println!("\nSite Details:");
+            println!(">Site Details:");
             println!("{:?}", site);
             Ok(site)
+        }
+        Err(e) => {
+            println!("Error: {:?}", e);
+            Err(e)
+        }
+    }
+}
+
+fn provision_ssl(
+    netlify: Netlify,
+    site: SiteDetails,
+    ssl_details: Ssl_Cert,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    match netlify.provision_ssl(site, ssl_details) {
+        Ok(ssl_enabled) => {
+            println!("> SSL Status:");
+            println!("{:?}", ssl_enabled);
+            Ok(ssl_enabled)
         }
         Err(e) => {
             println!("Error: {:?}", e);

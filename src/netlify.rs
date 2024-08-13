@@ -1,9 +1,11 @@
 /// Netlify Module
 /// Used to interact with the Netlify API
 
+/// TODO - Implement clone on site details
 /// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
 /// TODO - Delete a site request
 /// TODO - Update the Netlify lib so it uses OAuth2 instead of a token
+/// TODO - Test provisioning an SSL certificate
 use serde::{
     Deserialize,
     Serialize,
@@ -32,8 +34,21 @@ pub struct Payload {
 pub struct SiteDetails {
     pub name: Option<String>,
     pub id: Option<String>,
+    pub ssl: Option<bool>,
     pub url: Option<String>,
     pub screenshot_url: Option<String>,
+}
+
+/// Ssl_Cert struct
+/// Contains the details of an SSL certificate
+/// Fields match Netlify's API for provisioning an SSL certificate
+/// cert: The SSL certificate
+/// key: The SSL certificate key
+/// ca_cert: The SSL certificate CA
+pub struct Ssl_Cert {
+    pub cert: Option<String>,
+    pub key: Option<String>,
+    pub ca_cert: Option<String>,
 }
 
 impl Netlify {
@@ -161,6 +176,63 @@ impl Netlify {
         self.read_object_response(response)
     }
 
+    /// Provision an SSL certificate for a site
+    /// # Note - Unstable
+    /// This function is untested and may not work as expected
+    /// Why would you want to provision a new SSL anyway?
+    pub fn provision_ssl(
+        &self,
+        site_details: SiteDetails,
+        ssl_details: Ssl_Cert,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        println!("> Creating SSL certificate for: {}", site_details.name.clone().unwrap());
+
+        let request_url = 
+            self.url.clone() + 
+            "sites/" + 
+            site_details.id.unwrap().as_str() + 
+            "/ssl?certificate=" + 
+            ssl_details.cert.unwrap().as_str() +
+            "&key=" +
+            ssl_details.key.unwrap().as_str() +
+            "&ca_certificates=" +
+            ssl_details.ca_cert.unwrap().as_str();
+
+        let client = self.build_client();
+
+        // despite being a POST request, doesn't need a body.
+        let response = self.send_post_request(
+            client, 
+            request_url, 
+            serde_json::Value::Null
+        );
+
+        match response {
+            Ok(resp) => {
+
+                if resp.status().is_success() {
+
+                    let json: serde_json::Value = resp.json()?;
+                    println!("{}", json);
+                    return Ok(true)
+
+                } else {
+                    println!("> Request failed: {}", resp.status());
+                    return Err(
+                        format!(
+                            "> Request failed: {}", 
+                            resp.status()
+                        ).into()
+                    );
+                }
+            }
+            Err(e) => {
+                println!("> Request failed: {:?}", e);
+                return Err(format!("> Request failed: {:?}", e).into());
+            }
+        }
+    }
+
     /// Create a reqwest::Client
     /// Returns a reqwest::Client
     fn build_client(&self) -> reqwest::blocking::Client {
@@ -233,7 +305,7 @@ impl Netlify {
         json: serde_json::Value,
     ) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
         
-        println!("> Sending POST request to: {}", request_url);     
+        println!("> Sending PATCH request to: {}", request_url);     
 
         let request = client
             .patch(request_url)
@@ -297,8 +369,8 @@ impl Netlify {
             Ok(resp) => {
 
                 if resp.status() == 422 {
+                    println!("> Site name provided is not unique.");
                     println!("> Request failed with a status of 422.");
-                    println!("> Confirm the site name is valid and unique.");
                     println!(concat!("> !!!Note: 422 means 'unprocessable ",
                     "entity', but it could just be your site name is already ",
                     "being used. Try a different, more unique name.!!!"
