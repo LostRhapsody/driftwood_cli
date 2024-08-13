@@ -1,7 +1,6 @@
 /// Netlify Module
 /// Used to interact with the Netlify API
 
-/// TODO - Update a site request
 /// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
 /// TODO - Delete a site request
 /// TODO - Update the Netlify lib so it uses OAuth2 instead of a token
@@ -105,16 +104,16 @@ impl Netlify {
     /// Returns a Result containing a vector of SiteDetails or an error
     pub fn create_site(
         &self, 
-        site_name: String
+        new_site: SiteDetails
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
 
-        println!("> Creating site: {}", site_name);
+        println!("> Creating site: {}", new_site.name.clone().unwrap());
 
         // create the url
         let request_url = self.url.clone() + "sites";
 
         // create the request body
-        let json = serde_json::json!({"name": site_name,});
+        let json = serde_json::to_value(new_site)?;
 
         // build and send the request
         let client = self.build_client();
@@ -148,7 +147,7 @@ impl Netlify {
             existing_site_details.id.clone().unwrap().as_str();
 
         // serialize the new_site_details into a serde_json::Value
-        let json = serde_json::to_value(new_site_details).unwrap();
+        let json = serde_json::to_value(new_site_details)?;
 
         // build and send the request
         let client = self.build_client();

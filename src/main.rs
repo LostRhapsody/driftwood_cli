@@ -40,27 +40,3 @@ fn get_sites(netlify: Netlify) -> Vec<SiteDetails> {
         }
     }
 }
-
-/// Add a new site
-/// netlify: A Netlify instance
-/// site_name: The name of the site to create
-/// Returns a vector of SiteDetails
-fn create_site(netlify: Netlify, site_name: String) -> SiteDetails{
-    match netlify.create_site(site_name) {
-        Ok(sites) => {
-            println!("Done");
-            println!("\nSite Details:");
-            println!("{:?}", sites);
-            sites
-        }
-        Err(e) => {
-            println!("Error: {:?}", e);
-            SiteDetails {
-                name: Some(String::from("")),
-                id: Some(String::from("")),
-                url: Some(String::from("")),
-                screenshot_url: Some(String::from(""))
-            }
-        }
-    }
-}

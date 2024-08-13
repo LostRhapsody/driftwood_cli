@@ -273,7 +273,12 @@ fn create_site(
     netlify: Netlify,
     site_name: String,
 ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
-    match netlify.create_site(site_name) {
+    match netlify.create_site(SiteDetails{
+        name: Some(site_name),
+        id: None,
+        url: None,
+        screenshot_url: None,
+    }) {
         Ok(sites) => {
             println!("> Site Details:");
             println!("> {:?}", sites);
