@@ -1,22 +1,13 @@
-/// TODO - Change publish verbage to create site
-
-use std::{
-    io::Write,
-    fs,
-    path::Path,
-};
+use std::{fs, io::Write, path::Path};
 
 use driftwood::Post;
 
 use chrono;
 
-use crate::netlify::{
-    Netlify,
-    SiteDetails,
-};
+use crate::netlify::{Netlify, SiteDetails};
 
 /// Draws the menu and all the options
-pub fn draw_menu(){    
+pub fn draw_menu() {
     loop {
         // clear the terminal
         print!("\x1B[2J\x1B[1;1H");
@@ -24,7 +15,8 @@ pub fn draw_menu(){
         println!("---------------------------------------");
         println!("Options:");
         println!("1. Create a blog post");
-        println!("2. Publish the website");
+        println!("2. Create a site");
+        println!("3. List your sites");
         println!("Type 'exit' to quit.");
         print!("> ");
         std::io::stdout().flush().unwrap();
@@ -34,7 +26,8 @@ pub fn draw_menu(){
 
         match input.trim() {
             "1" => create_post(),
-            "2" => publish_website(),
+            "2" => create_website(),
+            "3" => list_websites(),
             "exit" => break,
             _ => println!("Invalid option. Please try again."),
         }
@@ -65,7 +58,9 @@ fn create_post() {
     }
 
     // needs to be at least 1 characters long
-    if !check_input_length(&input, 2) {return;}
+    if !check_input_length(&input, 2) {
+        return;
+    }
 
     let path = Path::new("posts");
 
@@ -83,25 +78,27 @@ fn create_post() {
         "This is a test post".to_string(),
         filename,
     );
-    
+
     // write the post to disk
-    fs::write(&post.filename,"").expect("Failed to write to file.");
-    println!("Post `{}` was created successfully. Edit your new file in: {}", post.title, post.filename);
+    fs::write(&post.filename, "").expect("Failed to write to file.");
+    println!(
+        "Post `{}` was created successfully. Edit your new file in: {}",
+        post.title, post.filename
+    );
     println!("Press enter to return to the main menu.");
     print!("> ");
     std::io::stdin().read_line(&mut input).unwrap();
-
 }
 
-fn publish_website(){
+fn create_website() {
     print!("\x1B[2J\x1B[1;1H");
-    println!("Publish the website");
+    println!("Create a website");
     println!("---------------------------------------");
     println!("Enter the name of your website.");
     println!("Type 'exit' to return to the main menu.");
     print!("> ");
     std::io::stdout().flush().unwrap();
-    
+
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
 
@@ -110,16 +107,112 @@ fn publish_website(){
         return;
     }
 
-    if !check_input_length(&input, 2) {return;}
+    if !check_input_length(&input, 2) {
+        return;
+    }
 
     let website_name = input.trim().to_string();
-    
+
     let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
-    let _ = create_site(netlify,website_name);
+    let _ = create_site(netlify, website_name);
 
     println!("Press enter to return to the main menu.");
     print!("> ");
     std::io::stdin().read_line(&mut input).unwrap();
+}
+
+fn list_websites() {
+    // grab all the sites
+    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let site_details: Vec<SiteDetails> = get_sites(netlify);
+
+    print!("\x1B[2J\x1B[1;1H");
+    println!("Your Websites");
+    println!("---------------------------------------");
+    // print out all site names
+    site_details.iter().for_each(|site| {
+        println!("{}", site.name.clone().unwrap());
+    });
+    println!("---------------------------------------");
+    println!("To edit a website's details, enter the site's name.");
+    println!("Type 'exit' to return to the main menu.");
+    print!("> ");
+    std::io::stdout().flush().unwrap();
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+
+    // Process the input here
+    if input.trim() == "exit" {
+        return;
+    }
+
+    if !check_input_length(&input, 2) {
+        return;
+    }
+
+    let site_id = input.trim().to_string();
+
+    // if the site id matches one of the site names in site_details
+    // then get the site details for that site
+    let site = site_details
+        .iter()
+        .find(|site| site.name.clone().unwrap() == site_id);
+
+    if site.is_some() {
+        update_site(site.unwrap());
+    }
+
+    println!("Press enter to return to the main menu.");
+    print!("> ");
+    std::io::stdin().read_line(&mut input).unwrap();
+
+}
+
+fn update_site(site:&SiteDetails) {
+
+    // grab all the sites
+    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    print!("\x1B[2J\x1B[1;1H");
+    println!("Name: {}", site.name.clone().unwrap());
+    println!("Id: {}", site.name.clone().unwrap());
+    println!("URL: {}", site.name.clone().unwrap());
+    println!("---------------------------------------");
+    println!("Type a new name to update the site's name.");
+    println!("Type 'exit' to return to the main menu.");
+    print!("> ");
+    std::io::stdout().flush().unwrap();
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+
+    // Process the input here
+    if input.trim() == "exit" {
+        return;
+    }
+
+    if !check_input_length(&input, 2) {
+        return;
+    }
+
+    let site_name = input.trim().to_string();
+
+    let new_site = SiteDetails {
+        name: Some(site_name),
+        id: site.id.clone(),
+        url: site.url.clone(),
+        screenshot_url: site.screenshot_url.clone(),
+    };
+
+    let existing_site = SiteDetails {
+        name: site.name.clone(),
+        id: site.id.clone(),
+        url: site.url.clone(),
+        screenshot_url: site.screenshot_url.clone(),
+    };
+
+    let _ = update_site_details(netlify, existing_site, new_site);
+
 }
 
 fn check_input_length(input: &str, length: usize) -> bool {
@@ -135,7 +228,7 @@ fn check_input_length(input: &str, length: usize) -> bool {
 }
 
 /// Convert a markdown file to an HTML file via the command line
-fn convert_md_to_html_cli(){
+fn convert_md_to_html_cli() {
     print!("\x1B[2J\x1B[1;1H");
     println!("Convert a markdown file to HTML:");
     println!("---------------------------------------");
@@ -145,13 +238,15 @@ fn convert_md_to_html_cli(){
     std::io::stdout().flush().unwrap();
 
     let mut input = String::new();
-    
-    std::io::stdin().read_line(&mut input).expect(
-        "Invalid entry for markdown and html filenames."
-    );
+
+    std::io::stdin()
+        .read_line(&mut input)
+        .expect("Invalid entry for markdown and html filenames.");
 
     // needs to be at least 3 characters long
-    if !check_input_length(&input, 3) {return;}
+    if !check_input_length(&input, 3) {
+        return;
+    }
 
     if input.trim() == "exit" {
         return;
@@ -175,9 +270,9 @@ fn convert_md_to_html_cli(){
 /// site_name: The name of the site to create
 /// Returns a vector of SiteDetails
 fn create_site(
-    netlify: Netlify, 
-    site_name: String
-) -> Result<SiteDetails, Box<dyn std::error::Error>>{
+    netlify: Netlify,
+    site_name: String,
+) -> Result<SiteDetails, Box<dyn std::error::Error>> {
     match netlify.create_site(site_name) {
         Ok(sites) => {
             println!("> Site Details:");
@@ -186,6 +281,48 @@ fn create_site(
         }
         Err(e) => {
             println!("> Error: {:?}", e);
+            Err(e)
+        }
+    }
+}
+
+/// Get all the sites for the user
+/// netlify: A Netlify instance
+/// Returns a vector of SiteDetails
+fn get_sites(netlify: Netlify) -> Vec<SiteDetails> {
+    match netlify.get_sites() {
+        Ok(sites) => {
+            println!("Done");
+            for each in &sites {
+                println!("\nSite Details:");
+                println!("{:?}", each);
+            }
+            sites
+        }
+        Err(e) => {
+            println!("Error: {:?}", e);
+            vec![]
+        }
+    }
+}
+
+/// Update the site details
+/// netlify: A Netlify instance
+/// Returns a vector of the new SiteDetails
+fn update_site_details(
+    netlify: Netlify,
+    existing_site_details: SiteDetails,
+    new_site_details: SiteDetails,
+) -> Result<SiteDetails, Box<dyn std::error::Error>> {
+    match netlify.update_site(existing_site_details, new_site_details) {
+        Ok(site) => {
+            println!("Done");
+            println!("\nSite Details:");
+            println!("{:?}", site);
+            Ok(site)
+        }
+        Err(e) => {
+            println!("Error: {:?}", e);
             Err(e)
         }
     }

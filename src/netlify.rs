@@ -5,7 +5,10 @@
 /// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
 /// TODO - Delete a site request
 /// TODO - Update the Netlify lib so it uses OAuth2 instead of a token
-use serde::Deserialize;
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 /// Netlify struct
 /// Contains the user agent, token, and base URL for the Netlify API
@@ -26,8 +29,10 @@ pub struct Payload {
 /// url: The URL of the site
 /// screenshot_url: The URL of the site's screenshot
 #[derive(Debug, Deserialize)]
+#[derive(Serialize)]
 pub struct SiteDetails {
     pub name: Option<String>,
+    pub id: Option<String>,
     pub url: Option<String>,
     pub screenshot_url: Option<String>,
 }
@@ -123,6 +128,40 @@ impl Netlify {
         self.read_object_response(response)
     }
 
+    /// Update an existing site
+    /// Returns a Result containing a vector of the new SiteDetails or an error
+    pub fn update_site(
+        &self,
+        existing_site_details: SiteDetails,
+        new_site_details: SiteDetails,
+    ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
+
+        println!(
+            "> Updating site: {}", 
+            existing_site_details.name.clone().unwrap()
+        );
+
+        // create the url
+        let request_url = 
+            self.url.clone() + 
+            "sites/" + 
+            existing_site_details.id.clone().unwrap().as_str();
+
+        // serialize the new_site_details into a serde_json::Value
+        let json = serde_json::to_value(new_site_details).unwrap();
+
+        // build and send the request
+        let client = self.build_client();
+        let response = self.send_patch_request(
+            client, 
+            request_url, 
+            json
+        );
+
+        // return the response
+        self.read_object_response(response)
+    }
+
     /// Create a reqwest::Client
     /// Returns a reqwest::Client
     fn build_client(&self) -> reqwest::blocking::Client {
@@ -173,6 +212,32 @@ impl Netlify {
 
         let request = client
             .post(request_url)
+            .bearer_auth(&self.token)
+            .json(&json)
+            .headers(Netlify::build_request_headers());
+
+        let response = request.send()?;        
+
+        Ok(response)
+    
+    }    
+
+    /// Send a PATCH request to the Netlify API
+    /// client: The reqwest::Client to use
+    /// request_url: The URL to send the request to
+    /// json: The JSON to send in the request
+    /// Returns a Result containing a reqwest::Response or an error
+    fn send_patch_request(
+        &self,
+        client: reqwest::blocking::Client,
+        request_url: String,
+        json: serde_json::Value,
+    ) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
+        
+        println!("> Sending POST request to: {}", request_url);     
+
+        let request = client
+            .patch(request_url)
             .bearer_auth(&self.token)
             .json(&json)
             .headers(Netlify::build_request_headers());

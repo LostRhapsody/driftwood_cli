@@ -57,6 +57,7 @@ fn create_site(netlify: Netlify, site_name: String) -> SiteDetails{
             println!("Error: {:?}", e);
             SiteDetails {
                 name: Some(String::from("")),
+                id: Some(String::from("")),
                 url: Some(String::from("")),
                 screenshot_url: Some(String::from(""))
             }
