@@ -1,11 +1,6 @@
 pub mod cli;
 pub mod netlify;
 
-use netlify::{
-    Netlify,
-    SiteDetails,
-};
-
 // #[tokio::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   
@@ -19,24 +14,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let _ = create_site(netlify,String::from("testSite25"));
 
     Ok(())
-}
-
-/// Get all the sites for the user
-/// netlify: A Netlify instance
-/// Returns a vector of SiteDetails
-fn get_sites(netlify: Netlify) -> Vec<SiteDetails> {
-    match netlify.get_sites() {
-        Ok(sites) => {
-            println!("Done");
-            for each in &sites {
-                println!("\nSite Details:");
-                println!("{:?}", each);
-            }
-            sites
-        }
-        Err(e) => {
-            println!("Error: {:?}", e);
-            vec![]
-        }
-    }
 }

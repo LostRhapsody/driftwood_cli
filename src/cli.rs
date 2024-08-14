@@ -19,7 +19,7 @@ pub fn draw_menu() {
         println!("Options:");
         println!("1. Create a blog post");
         println!("2. Create a site");
-        println!("3. List your sites");
+        println!("3. Edit your sites");
         println!("Type 'exit' to quit.");
         print!("> ");
         std::io::stdout().flush().unwrap();
@@ -179,7 +179,8 @@ fn update_site(site:&SiteDetails) {
     println!("---------------------------------------");
     println!("Options:");
     println!("1. Update the site's name");
-    println!("2. Create an SSL certificate for the site");
+    println!("2. Delete the site");
+    println!("3. Create an SSL certificate for the site");
     println!("Type 'exit' to return to the main menu.");
     print!("> ");
     std::io::stdout().flush().unwrap();
@@ -198,7 +199,8 @@ fn update_site(site:&SiteDetails) {
 
     match input.trim() {
         "1" => update_site_name(site),
-        "2" => create_ssl_certificate(site),
+        "2" => delete_site(site),
+        "3" => create_ssl_certificate(site),
         _ => println!("Invalid option. Returning to main menu."),
     }
 
@@ -225,23 +227,43 @@ fn update_site_name(site:&SiteDetails){
 
     let site_name = input.trim().to_string();
 
-    let new_site = SiteDetails {
-        name: Some(site_name),
-        id: site.id.clone(),
-        ssl: site.ssl.clone(),
-        url: site.url.clone(),
-        screenshot_url: site.screenshot_url.clone(),
-    };
-
-    let existing_site = SiteDetails {
-        name: site.name.clone(),
-        id: site.id.clone(),
-        ssl: site.ssl.clone(),
-        url: site.url.clone(),
-        screenshot_url: site.screenshot_url.clone(),
-    };
+    let mut new_site = site.clone();
+    new_site.name = Some(site_name);
+    let existing_site = site.clone();
 
     let _ = update_site_details(netlify, existing_site, new_site);
+
+}
+
+fn delete_site(site:&SiteDetails){
+
+    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    print!("\x1B[2J\x1B[1;1H");
+    println!("Deleting: {}", site.name.clone().unwrap());
+    println!("This will permanently delete the website.");
+    println!("Are you sure you want to continue?");
+    println!("Type 'yes' to delete.");
+    println!("Type 'exit' to return to the main menu.");
+    print!("> ");
+    std::io::stdout().flush().unwrap();
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+
+    // Process the input here
+    if input.trim() == "exit" {
+        return;
+    }
+
+    else if input.trim() == "yes" {
+        let _ = netlify.delete_site(site.clone());
+        println!("Site deleted.");
+        println!("Press enter to return to the main menu.");
+        print!("> ");
+        std::io::stdin().read_line(&mut input).unwrap();
+    } else {
+        println!("Invalid option. Returning to main menu.");
+    }
 
 }
 
@@ -269,13 +291,8 @@ fn create_ssl_certificate(site:&SiteDetails){
     let ca = input.trim().to_string();
     println!("Creating SSL certificate for site: {}", site.name.clone().unwrap());    
     let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
-    let current_site = SiteDetails {
-        name: site.name.clone(),
-        id: site.id.clone(),
-        ssl: Some(true),
-        url: site.url.clone(),
-        screenshot_url: site.screenshot_url.clone(),
-    };
+    let mut current_site = site.clone();
+    current_site.ssl = Some(true);
 
     let new_ssl_details  = Ssl_Cert{
         cert: Some(certificate),

@@ -1,7 +1,6 @@
 /// Netlify Module
 /// Used to interact with the Netlify API
 
-/// TODO - Implement clone on site details
 /// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
 /// TODO - Delete a site request
 /// TODO - Update the Netlify lib so it uses OAuth2 instead of a token
@@ -29,8 +28,7 @@ pub struct Payload {
 /// name: The name of the site
 /// url: The URL of the site
 /// screenshot_url: The URL of the site's screenshot
-#[derive(Debug, Deserialize)]
-#[derive(Serialize)]
+#[derive(Debug, Deserialize,Serialize,Clone)]
 pub struct SiteDetails {
     pub name: Option<String>,
     pub id: Option<String>,
@@ -170,6 +168,36 @@ impl Netlify {
             client, 
             request_url, 
             json
+        );
+
+        // return the response
+        self.read_object_response(response)
+    }
+
+    /// Update an existing site
+    /// Returns a Result containing a vector of the new SiteDetails or an error
+    pub fn delete_site(
+        &self,
+        site_details: SiteDetails,
+    ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
+
+        println!(
+            "> Deleting site: {}", 
+            site_details.name.clone().unwrap()
+        );
+
+        // create the url
+        let request_url = 
+            self.url.clone() + 
+            "sites/" + 
+            site_details.id.clone().unwrap().as_str();
+
+        // build and send the request
+        let client = self.build_client();
+        let response = self.send_delete_request(
+            client, 
+            request_url, 
+            serde_json::Value::Null
         );
 
         // return the response
@@ -317,7 +345,33 @@ impl Netlify {
 
         Ok(response)
     
-    }    
+    }   
+
+    /// Send a DELETE request to the Netlify API
+    /// client: The reqwest::Client to use
+    /// request_url: The URL to send the request to
+    /// json: The JSON to send in the request
+    /// Returns a Result containing a reqwest::Response or an error
+    fn send_delete_request(
+        &self,
+        client: reqwest::blocking::Client,
+        request_url: String,
+        json: serde_json::Value,
+    ) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
+        
+        println!("> Sending DELETE request to: {}", request_url);     
+
+        let request = client
+            .delete(request_url)
+            .bearer_auth(&self.token)
+            .json(&json)
+            .headers(Netlify::build_request_headers());
+
+        let response = request.send()?;        
+
+        Ok(response)
+    
+    } 
 
     /// Read the response from the Netlify API (array)
     /// response: The response from the Netlify API
