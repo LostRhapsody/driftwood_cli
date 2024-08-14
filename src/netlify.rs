@@ -10,17 +10,14 @@ use serde::{
     Serialize,
 };
 
+use std::collections::HashMap;
+
 /// Netlify struct
 /// Contains the user agent, token, and base URL for the Netlify API
 pub struct Netlify {
     user_agent: String,
     token: String,
     url: String,
-}
-
-#[derive(serde::Serialize)]
-pub struct Payload {
-    pub name: String,
 }
 
 /// SiteDetails struct
@@ -35,6 +32,14 @@ pub struct SiteDetails {
     pub ssl: Option<bool>,
     pub url: Option<String>,
     pub screenshot_url: Option<String>,
+    pub required: Option<Vec<String>>,
+}
+
+/// FileHashes struct
+/// Contains the path and SHA1 hash of a file
+#[derive(Serialize, Deserialize)]
+pub struct FileHashes {
+    files: HashMap<String, String>,
 }
 
 /// Ssl_Cert struct
@@ -198,6 +203,40 @@ impl Netlify {
             client, 
             request_url, 
             serde_json::Value::Null
+        );
+
+        // return the response
+        self.read_object_response(response)
+    }
+
+    /// Send a list of files to the Netlify API
+    /// site_details: A SiteDetails struct containing the site ID
+    /// file_hashes: A FileHashes struct containing the path and SHA1 hash of a file
+    /// Returns a Result containing a vector of SiteDetails 
+    /// with the checksums for the required files in a 'required' array
+    pub fn send_file_checksums(
+        &self,
+        site_details: SiteDetails,
+        file_hashes: FileHashes,
+    ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
+
+        file_hashes.files.iter().for_each(|(path, hash)| {
+            println!("> Sending file hash: {} - {}", path, hash);
+        });    
+
+        // create the url
+        let request_url = 
+            self.url.clone() + 
+            "sites/" + 
+            site_details.id.clone().unwrap().as_str() + 
+            "/deploys";
+
+        // build and send the request
+        let client = self.build_client();
+        let response = self.send_post_request(
+            client, 
+            request_url, 
+            serde_json::to_value(file_hashes)?
         );
 
         // return the response

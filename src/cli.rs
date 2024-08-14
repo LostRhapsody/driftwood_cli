@@ -373,6 +373,7 @@ fn create_site(
         url: None,
         ssl: None,
         screenshot_url: None,
+        required: None,
     }) {
         Ok(sites) => {
             println!("> Site Details:");
