@@ -1,9 +1,9 @@
 /// Netlify Module
 /// Used to interact with the Netlify API
 
-/// TODO - Shutdown a site request (just stop it, don't delete the whole thing)
-/// TODO - Delete a site request
 /// TODO - Update the Netlify lib so it uses OAuth2 instead of a token
+/// TODO - Add publish site/push site content function
+/// TODO - Add convert markdown to html and populate template function
 /// TODO - Test provisioning an SSL certificate
 use serde::{
     Deserialize,
