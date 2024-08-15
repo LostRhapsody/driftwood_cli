@@ -63,11 +63,11 @@ fn create_post(site: &SiteDetails) {
     }
 
     // build the post path
-    let post_path = &format!("{}/posts", build_site_path(site));
+    let post_path = &format!("{}/md_posts", build_site_path(site));
     let post_path = Path::new(post_path);
 
     if !post_path.exists() {
-        fs::create_dir(post_path).expect("Failed to create this site's 'posts' directory");
+        fs::create_dir(post_path).expect("Failed to create this site's 'md_posts' directory");
     }
 
     // build the title of the file and filename
@@ -276,14 +276,63 @@ fn update_site_name(site: &SiteDetails) {
 fn deploy_site(site: &SiteDetails) {
     let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
 
-    // first generate the sha1 hash of all the files
+    // first loop through the site's posts and convert them to HTML
+    let site_path = build_site_path(site);
+    let post_path = format!("{}/md_posts", site_path);
+    let html_post_path = format!("{}/posts", site_path);
+
+    // lol bad names... it's the PATH types of these string paths
+    let post_path_path = Path::new(&post_path);
+    let html_post_path_path = Path::new(&html_post_path);
+    if !post_path_path.exists() {
+        fs::create_dir(post_path_path).expect("Failed to create this site's 'md_posts' directory");
+    }
+    if !html_post_path_path.exists() {
+        fs::create_dir(html_post_path_path)
+            .expect("Failed to create this site's 'md_posts' directory");
+    }
+
+    // loop through md posts
+    for entry in fs::read_dir(post_path).unwrap() {
+        // md filename
+        let entry = entry.unwrap();
+        println!("> {:?}", entry.file_name().to_string_lossy());
+        // full path to md file
+        let md_file_name = entry.path();
+        println!("> {:?}", md_file_name);
+        // full path to html file
+        let html_file_name = format!(
+            "{}/posts/{}.html",
+            site_path,
+            entry.file_name().to_string_lossy()
+        );
+        println!("> {:?}", html_file_name);
+
+        if md_file_name.is_file() {
+            let md_file_name = md_file_name.to_string_lossy();
+            // let html_file_name = html_file_name.file_name().unwrap().to_string_lossy().into_owned();
+            // convert to html
+            let success = Post::read_and_parse(&md_file_name, &html_file_name);
+            match success {
+                Ok(_) => {
+                    println!("Successfully converted markdown to HTML.");
+                }
+                Err(e) => {
+                    println!("Failed to convert markdown to HTML.");
+                    println!("Error: {:?}", e);
+                }
+            }
+        }
+    }
+
+    // second generate the sha1 hash of all the html files
     let site_path = build_site_path(site);
     let post_path = format!("{}/posts", site_path);
 
     let site_path = Path::new(&site_path);
     let post_path = Path::new(&post_path);
 
-    let sha1_result = Netlify::generate_sha1_for_posts(site_path,post_path);
+    let sha1_result = Netlify::generate_sha1_for_posts(site_path, post_path);
 
     if sha1_result.is_ok() {
         println!("> SHA1 hash generated successfully.");
@@ -296,10 +345,7 @@ fn deploy_site(site: &SiteDetails) {
     }
 
     // post the file hashes to netlify
-    let new_site = netlify.send_file_checksums(
-        site.clone(),
-        sha1_result.unwrap(), 
-    );
+    let new_site = netlify.send_file_checksums(site.clone(), sha1_result.unwrap());
     match new_site {
         Ok(site) => {
             println!(">Site Details:");
@@ -310,10 +356,9 @@ fn deploy_site(site: &SiteDetails) {
             });
         }
         Err(e) => {
-            println!("Error: {:?}", e); 
+            println!("Error: {:?}", e);
         }
     }
-
 }
 
 fn delete_site(site: &SiteDetails) {
@@ -435,10 +480,14 @@ fn convert_md_to_html_cli() {
     let args: Vec<&str> = input.trim().split(" ").collect();
 
     let success = Post::read_and_parse(&args[0], &args[1]);
-    if success {
-        println!("Successfully converted markdown to HTML.");
-    } else {
-        println!("Failed to convert markdown to HTML.");
+    match success {
+        Ok(_) => {
+            println!("Successfully converted markdown to HTML.");
+        }
+        Err(e) => {
+            println!("Failed to convert markdown to HTML.");
+            println!("Error: {:?}", e);
+        }
     }
     println!("Press enter to return to the main menu.");
     print!("> ");
