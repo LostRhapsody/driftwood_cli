@@ -350,24 +350,39 @@ fn deploy_site(site: &SiteDetails) {
     // post the file hashes to netlify
     let new_site = netlify.send_file_checksums(site.clone(), &sha1_hashmap);
     
+    // make sure you don't overlap "site" and "new site"
+    // site is the og site details, new site is the deploy details + site details
+    // the id will overlap
     match new_site {
-        Ok(site) => {
+        Ok(new_site) => {
             println!(">Site Details:");
-            println!("{:?}", site);
+            println!("{:?}", new_site);
 
             // loop over the site's required vector (unwrap to get outside the option)
-            site.required.unwrap().iter().for_each(|file| {
+            new_site.required.unwrap().iter().for_each(|file| {
                 println!("> Required file: {:?}", file);
 
                 // loop through our hashmap of file hashes
                 sha1_hashmap.files.iter().for_each(|file_hash|{
 
                     // destructure the tuple (apparently iterating through hashmaps gives you tuples)
-                    let (_,current_file_hash) = file_hash;
+                    let (current_file_name,current_file_hash) = file_hash;
                     // if they match, print
                     if file == current_file_hash {
                         println!("> Matching File hash: {:?}", file_hash);
-                        // Upload to netlify
+                        let response = netlify.upload_file(
+                            site.name.clone().unwrap(),
+                            site.id.clone().unwrap(),
+                            Path::new(current_file_name)
+                        );
+                        match response {
+                            Ok(_) => {
+                                println!("> File uploaded successfully.");
+                            }
+                            Err(e) => {
+                                println!("> Error: {:?}", e);
+                            }
+                        }
                     }
                 });
             });

@@ -14,7 +14,7 @@ use serde::{
     Serialize,
 };
 
-use std::{collections::HashMap, fs, path::Path};
+use std::{collections::HashMap, fs::{self, File}, path::Path};
 
 /// Netlify struct
 /// Contains the user agent, token, and base URL for the Netlify API
@@ -243,6 +243,69 @@ impl Netlify {
         self.read_object_response(response)
     }
 
+    pub fn upload_file(
+        &self,
+        // site_details: SiteDetails,
+        site_name: String,
+        site_id: String,
+        file_path: &Path,
+    ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
+
+        // create the url
+        let request_url = format!(
+            "{}deploys/{}/files{}", 
+            self.url, 
+            site_id,
+            file_path.display()
+        );
+
+        println!("> request URL: {}", request_url);
+        println!("> File path: {}", file_path.display());
+
+        let full_path_str: String;
+        let mut full_path = Path::new("");
+
+        // if the file is /index.html, full path will be sitename_siteid/index.html
+        if file_path.to_string_lossy() == "/index.html" {
+            println!("> File is index.html");
+            full_path_str = format!(
+                "/sites/{}_{}/index.html", 
+                site_name,
+                site_id
+            );
+            full_path = Path::new(&full_path_str);
+        } else {
+            println!("> File is not index.html");
+            full_path_str = format!(
+                "/sites/{}_{}{}", 
+                site_name,
+                site_id,
+                file_path.display()
+            );
+            full_path = Path::new(&full_path_str);
+        }
+
+        println!("> Full path: {}", full_path.display());
+
+        // confirm full_path exists
+        if !full_path.exists() {
+            return Err(format!("> {} not found", full_path.display()).into());
+        }
+
+        let file = File::open(full_path)?;
+
+        // build and send the request
+        let client = self.build_client();
+        let response = self.send_put_request(
+            client, 
+            request_url, 
+            file
+        );
+
+        // return the response
+        self.read_object_response(response)
+    }    
+
     /// Provision an SSL certificate for a site
     /// # Note - Unstable
     /// This function is untested and may not work as expected
@@ -352,6 +415,32 @@ impl Netlify {
             .post(request_url)
             .bearer_auth(&self.token)
             .json(&json)
+            .headers(Netlify::build_request_headers());
+
+        let response = request.send()?;        
+
+        Ok(response)
+    
+    }
+
+    /// Send a PUT request to the Netlify API
+    /// client: The reqwest::Client to use
+    /// request_url: The URL to send the request to
+    /// json: The JSON to send in the request
+    /// Returns a Result containing a reqwest::Response or an error
+    fn send_put_request(
+        &self,
+        client: reqwest::blocking::Client,
+        request_url: String,
+        file: File,
+    ) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
+        
+        println!("> Sending PUT request to: {}", request_url);     
+
+        let request = client
+            .put(request_url)
+            .bearer_auth(&self.token)
+            .body(file)
             .headers(Netlify::build_request_headers());
 
         let response = request.send()?;        
@@ -518,6 +607,11 @@ impl Netlify {
 
         let mut sha1 = sha1_smol::Sha1::new();
 
+        // ensure the index.html file exists
+        if !Path::new(&format!("{}/index.html",site_path.display())).exists() {
+            return Err(format!("> index.html not found in {}", site_path.display()).into());
+        }
+
         // first grab the hash for /site/index.html
         let index_file = fs::read(
             format!("{}/index.html",site_path.display())
@@ -525,7 +619,7 @@ impl Netlify {
 
         sha1.update(&index_file);
         file_hashes.files.insert(
-            "index.html".to_string(), 
+            "/index.html".to_string(), 
             sha1.digest().to_string()
         );
         sha1.reset();
