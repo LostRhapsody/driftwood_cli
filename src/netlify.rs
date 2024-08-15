@@ -43,7 +43,7 @@ pub struct SiteDetails {
 /// Contains the path and SHA1 hash of a file
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileHashes {
-    files: HashMap<String, String>,
+    pub files: HashMap<String, String>,
 }
 
 /// Ssl_Cert struct
@@ -221,7 +221,7 @@ impl Netlify {
     pub fn send_file_checksums(
         &self,
         site_details: SiteDetails,
-        file_hashes: FileHashes,
+        file_hashes: &FileHashes,
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
 
         // create the url

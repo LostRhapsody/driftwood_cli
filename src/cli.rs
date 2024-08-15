@@ -342,17 +342,34 @@ fn deploy_site(site: &SiteDetails) {
         print!("> ");
         std::io::stdin().read_line(&mut String::new()).unwrap();
         return;
-    }
+    }    
+
+    // unwrap the result to get the FileHashes struct
+    let sha1_hashmap = sha1_result.unwrap();
 
     // post the file hashes to netlify
-    let new_site = netlify.send_file_checksums(site.clone(), sha1_result.unwrap());
+    let new_site = netlify.send_file_checksums(site.clone(), &sha1_hashmap);
+    
     match new_site {
         Ok(site) => {
             println!(">Site Details:");
             println!("{:?}", site);
-            // loop over the site's required vector
-            site.required.iter().for_each(|file| {
+
+            // loop over the site's required vector (unwrap to get outside the option)
+            site.required.unwrap().iter().for_each(|file| {
                 println!("> Required file: {:?}", file);
+
+                // loop through our hashmap of file hashes
+                sha1_hashmap.files.iter().for_each(|file_hash|{
+
+                    // destructure the tuple (apparently iterating through hashmaps gives you tuples)
+                    let (_,current_file_hash) = file_hash;
+                    // if they match, print
+                    if file == current_file_hash {
+                        println!("> Matching File hash: {:?}", file_hash);
+                        // Upload to netlify
+                    }
+                });
             });
         }
         Err(e) => {
