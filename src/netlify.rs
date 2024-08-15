@@ -248,6 +248,7 @@ impl Netlify {
         // site_details: SiteDetails,
         site_name: String,
         site_id: String,
+        deploy_id: String,
         file_path: &Path,
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
 
@@ -255,7 +256,7 @@ impl Netlify {
         let request_url = format!(
             "{}deploys/{}/files{}", 
             self.url, 
-            site_id,
+            deploy_id,
             file_path.display()
         );
 
@@ -269,7 +270,7 @@ impl Netlify {
         if file_path.to_string_lossy() == "/index.html" {
             println!("> File is index.html");
             full_path_str = format!(
-                "/sites/{}_{}/index.html", 
+                "sites/{}_{}/index.html", 
                 site_name,
                 site_id
             );
@@ -277,7 +278,7 @@ impl Netlify {
         } else {
             println!("> File is not index.html");
             full_path_str = format!(
-                "/sites/{}_{}{}", 
+                "sites/{}_{}{}", 
                 site_name,
                 site_id,
                 file_path.display()

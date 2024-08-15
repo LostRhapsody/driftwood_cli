@@ -373,6 +373,7 @@ fn deploy_site(site: &SiteDetails) {
                         let response = netlify.upload_file(
                             site.name.clone().unwrap(),
                             site.id.clone().unwrap(),
+                            new_site.id.clone().unwrap(),
                             Path::new(current_file_name)
                         );
                         match response {
