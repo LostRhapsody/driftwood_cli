@@ -1,6 +1,10 @@
 /// Netlify Module
 /// Used to interact with the Netlify API
 
+/// TODO - Most Important!!! Place .md files in md_posts instead of /posts
+///        When we deploy the site, convert the .md to .html and place in /posts
+///        continue on with the process, generating hashes and sending those to Netlify.
+
 /// TODO - Update the Netlify lib so it uses OAuth2 instead of a token
 /// TODO - Add publish site/push site content function
 /// TODO - Add convert markdown to html and populate template function
@@ -10,7 +14,7 @@ use serde::{
     Serialize,
 };
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fs, path::Path};
 
 /// Netlify struct
 /// Contains the user agent, token, and base URL for the Netlify API
@@ -37,7 +41,7 @@ pub struct SiteDetails {
 
 /// FileHashes struct
 /// Contains the path and SHA1 hash of a file
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct FileHashes {
     files: HashMap<String, String>,
 }
@@ -220,16 +224,12 @@ impl Netlify {
         file_hashes: FileHashes,
     ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
 
-        file_hashes.files.iter().for_each(|(path, hash)| {
-            println!("> Sending file hash: {} - {}", path, hash);
-        });    
-
         // create the url
-        let request_url = 
-            self.url.clone() + 
-            "sites/" + 
-            site_details.id.clone().unwrap().as_str() + 
-            "/deploys";
+        let request_url = format!(
+            "{}sites/{}/deploys", 
+            self.url, 
+            site_details.id.unwrap()
+        );
 
         // build and send the request
         let client = self.build_client();
@@ -501,5 +501,54 @@ impl Netlify {
             reqwest::header::HeaderValue::from_static("application/json"),
         );
         headers
+    }
+
+    /// Reads in all files in a site's posts directory and generates SHA1 hashes
+    /// Returns a FileHashes struct containing the path and SHA1 hash of a file
+    pub fn generate_sha1_for_posts(
+        site_path: &Path,
+        posts_dir: &Path
+    ) -> Result<FileHashes, Box<dyn std::error::Error>> {
+        println!("> Generating SHA1 hashes for posts...");
+        println!("> Posts directory: {:?}", posts_dir);
+
+        let mut file_hashes = FileHashes {
+            files: HashMap::new(),
+        };
+
+        let mut sha1 = sha1_smol::Sha1::new();
+
+        // first grab the hash for /site/index.html
+        let index_file = fs::read(
+            format!("{}/index.html",site_path.display())
+        )?;
+
+        sha1.update(&index_file);
+        file_hashes.files.insert(
+            "index.html".to_string(), 
+            sha1.digest().to_string()
+        );
+        sha1.reset();
+
+        // loop through the files in this dir
+        for entry in fs::read_dir(posts_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() {
+                let file_name = path.file_name().unwrap().to_string_lossy().into_owned();
+                // provide sha1.update with the file
+                let file = fs::read(path)?;
+                sha1.update(&file);
+                file_hashes.files.insert(
+                    format!("/posts/{}", file_name), 
+                    sha1.digest().to_string()
+                );
+                sha1.reset();
+            }
+        }
+        
+        println!("{:?}",file_hashes);
+
+        Ok(file_hashes)
     }
 }

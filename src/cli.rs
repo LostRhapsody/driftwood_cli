@@ -13,13 +13,12 @@ use crate::netlify::{Netlify, SiteDetails, Ssl_Cert};
 pub fn draw_menu() {
     loop {
         // clear the terminal
-        print!("\x1B[2J\x1B[1;1H");
+        // print!("\x1B[2J\x1B[1;1H");
         println!("Driftwood - Deploy blogs in one click");
         println!("---------------------------------------");
         println!("Options:");
-        println!("1. Create a blog post");
-        println!("2. Create a site");
-        println!("3. Edit your sites");
+        println!("1. Create a site");
+        println!("2. Select a site");
         println!("Type 'exit' to quit.");
         print!("> ");
         std::io::stdout().flush().unwrap();
@@ -28,9 +27,8 @@ pub fn draw_menu() {
         std::io::stdin().read_line(&mut input).unwrap();
 
         match input.trim() {
-            "1" => create_post(),
-            "2" => create_website(),
-            "3" => list_websites(),
+            "1" => create_website(),
+            "2" => list_websites(),
             "exit" => break,
             _ => println!("Invalid option. Please try again."),
         }
@@ -42,9 +40,9 @@ pub fn draw_menu() {
     }
 }
 
-fn create_post() {
+fn create_post(site: &SiteDetails) {
     // clear the terminal
-    print!("\x1B[2J\x1B[1;1H");
+    // print!("\x1B[2J\x1B[1;1H");
     println!("Create a blog post");
     println!("---------------------------------------");
     println!("Enter the name of the blog post.");
@@ -52,49 +50,63 @@ fn create_post() {
     print!("> ");
     std::io::stdout().flush().unwrap();
 
+    // standard input stuff
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
-
     // Process the input here
     if input.trim() == "exit" {
         return;
     }
-
     // needs to be at least 1 characters long
     if !check_input_length(&input, 2) {
         return;
     }
 
-    let path = Path::new("posts");
+    // build the post path
+    let post_path = &format!("{}/posts", build_site_path(site));
+    let post_path = Path::new(post_path);
 
-    if !path.exists() {
-        fs::create_dir(path).expect("Failed to create 'posts' directory");
+    if !post_path.exists() {
+        fs::create_dir(post_path).expect("Failed to create this site's 'posts' directory");
     }
 
+    // build the title of the file and filename
     let title = input.trim().to_string() + ".md";
-    let filename = "posts/".to_string() + title.clone().as_str();
+    let filename = format!("{}/{}", post_path.display(), title);
+
+    let date = chrono::Local::now();
+    let date = date.date_naive().to_string();
 
     // create a new file in the 'posts' directory
-    let post = Post::new(
-        title,
-        chrono::Local::now().to_string(),
-        "This is a test post".to_string(),
-        filename,
-    );
+    let post = Post::new(title, date, "This is a test post".to_string(), filename);
 
     // write the post to disk
     fs::write(&post.filename, "").expect("Failed to write to file.");
+
+    // open the post file written to disk and write the title and timestamp to the file
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(&post.filename)
+        .expect("Failed to open file.");
+
+    let post_content = format!("# {}\nDate: {}", post.title, post.date);
+
+    file.write_all(post_content.as_bytes())
+        .expect("Failed to write to file.");
+
     println!(
         "Post `{}` was created successfully. Edit your new file in: {}",
         post.title, post.filename
     );
+
     println!("Press enter to return to the main menu.");
     print!("> ");
     std::io::stdin().read_line(&mut input).unwrap();
 }
 
 fn create_website() {
-    print!("\x1B[2J\x1B[1;1H");
+    // print!("\x1B[2J\x1B[1;1H");
     println!("Create a website");
     println!("---------------------------------------");
     println!("Enter the name of your website.");
@@ -130,7 +142,7 @@ fn list_websites() {
     let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
     let site_details: Vec<SiteDetails> = get_sites(netlify);
 
-    print!("\x1B[2J\x1B[1;1H");
+    // print!("\x1B[2J\x1B[1;1H");
     println!("Your Websites");
     println!("---------------------------------------");
     // print out all site names
@@ -164,23 +176,24 @@ fn list_websites() {
         .find(|site| site.name.clone().unwrap() == site_id);
 
     if site.is_some() {
+        make_site_dir(site.unwrap());
         update_site(site.unwrap());
     }
-
 }
 
-fn update_site(site:&SiteDetails) {
-    
-    print!("\x1B[2J\x1B[1;1H");
+fn update_site(site: &SiteDetails) {
+    // print!("\x1B[2J\x1B[1;1H");
     println!("Name: {}", site.name.clone().unwrap());
     println!("Id: {}", site.name.clone().unwrap());
     println!("URL: {}", site.name.clone().unwrap());
     println!("SSL: {}", site.ssl.clone().unwrap());
     println!("---------------------------------------");
     println!("Options:");
-    println!("1. Update the site's name");
-    println!("2. Delete the site");
-    println!("3. Create an SSL certificate for the site");
+    println!("1. Create a blog post");
+    println!("2. Deploy the site");
+    println!("3. Update the site's name");
+    println!("4. Delete the site");
+    println!("5. Provision an SSL certificate");
     println!("Type 'exit' to return to the main menu.");
     print!("> ");
     std::io::stdout().flush().unwrap();
@@ -195,21 +208,47 @@ fn update_site(site:&SiteDetails) {
 
     if !check_input_length(&input, 2) {
         return;
-    }    
-
-    match input.trim() {
-        "1" => update_site_name(site),
-        "2" => delete_site(site),
-        "3" => create_ssl_certificate(site),
-        _ => println!("Invalid option. Returning to main menu."),
     }
 
+    match input.trim() {
+        "1" => create_post(site),
+        "2" => deploy_site(site),
+        "3" => update_site_name(site),
+        "4" => delete_site(site),
+        "5" => create_ssl_certificate(site),
+        _ => println!("Invalid option. Returning to main menu."),
+    }
 }
 
-fn update_site_name(site:&SiteDetails){
+/// Creates a directory for the site on disk using site.name + site.id
+/// Does not consume the site struct or return any values
+fn make_site_dir(site: &SiteDetails) {
+    let site_dir = "sites";
+    let path = Path::new(site_dir);
 
+    if !path.exists() {
+        fs::create_dir(path).expect("Failed to create 'sites' directory");
+    }
+
+    // create a directory for the site
+    let site_dir = format!(
+        "sites/{}_{}",
+        site.name.clone().unwrap(),
+        site.id.clone().unwrap()
+    );
+    let path = Path::new(&site_dir);
+
+    if !path.exists() {
+        fs::create_dir(path).expect(&format!(
+            "Failed to create site directory for site: {}",
+            site.name.clone().unwrap()
+        ));
+    }
+}
+
+fn update_site_name(site: &SiteDetails) {
     let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
-    print!("\x1B[2J\x1B[1;1H");
+    // print!("\x1B[2J\x1B[1;1H");
     println!("Name: {}", site.name.clone().unwrap());
     println!("Enter the new name of your website.");
     println!("Note: Special characters, spaces, and punctuation will be replaced with a dash '-'.");
@@ -232,13 +271,54 @@ fn update_site_name(site:&SiteDetails){
     let existing_site = site.clone();
 
     let _ = update_site_details(netlify, existing_site, new_site);
+}
+
+fn deploy_site(site: &SiteDetails) {
+    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+
+    // first generate the sha1 hash of all the files
+    let site_path = build_site_path(site);
+    let post_path = format!("{}/posts", site_path);
+
+    let site_path = Path::new(&site_path);
+    let post_path = Path::new(&post_path);
+
+    let sha1_result = Netlify::generate_sha1_for_posts(site_path,post_path);
+
+    if sha1_result.is_ok() {
+        println!("> SHA1 hash generated successfully.");
+    } else {
+        println!("> Error: {}", sha1_result.err().unwrap());
+        println!("Press enter to return to the main menu.");
+        print!("> ");
+        std::io::stdin().read_line(&mut String::new()).unwrap();
+        return;
+    }
+
+    // post the file hashes to netlify
+    let new_site = netlify.send_file_checksums(
+        site.clone(),
+        sha1_result.unwrap(), 
+    );
+    match new_site {
+        Ok(site) => {
+            println!(">Site Details:");
+            println!("{:?}", site);
+            // loop over the site's required vector
+            site.required.iter().for_each(|file| {
+                println!("> Required file: {:?}", file);
+            });
+        }
+        Err(e) => {
+            println!("Error: {:?}", e); 
+        }
+    }
 
 }
 
-fn delete_site(site:&SiteDetails){
-
+fn delete_site(site: &SiteDetails) {
     let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
-    print!("\x1B[2J\x1B[1;1H");
+    // print!("\x1B[2J\x1B[1;1H");
     println!("Deleting: {}", site.name.clone().unwrap());
     println!("This will permanently delete the website.");
     println!("Are you sure you want to continue?");
@@ -253,9 +333,7 @@ fn delete_site(site:&SiteDetails){
     // Process the input here
     if input.trim() == "exit" {
         return;
-    }
-
-    else if input.trim() == "yes" {
+    } else if input.trim() == "yes" {
         let _ = netlify.delete_site(site.clone());
         println!("Site deleted.");
         println!("Press enter to return to the main menu.");
@@ -264,11 +342,10 @@ fn delete_site(site:&SiteDetails){
     } else {
         println!("Invalid option. Returning to main menu.");
     }
-
 }
 
-fn create_ssl_certificate(site:&SiteDetails){
-    print!("\x1B[2J\x1B[1;1H");
+fn create_ssl_certificate(site: &SiteDetails) {
+    // print!("\x1B[2J\x1B[1;1H");
     println!("Enter the details for your SSL certificate.");
     println!("Type 'exit' to return to the main menu.");
     print!("Certificate > ");
@@ -277,30 +354,39 @@ fn create_ssl_certificate(site:&SiteDetails){
     let mut input = String::new();
 
     std::io::stdin().read_line(&mut input).unwrap();
-    if input.trim() == "exit" { return; }
+    if input.trim() == "exit" {
+        return;
+    }
     let certificate = input.trim().to_string();
     print!("Key > ");
     std::io::stdout().flush().unwrap();
     std::io::stdin().read_line(&mut input).unwrap();
-    if input.trim() == "exit" { return; }
+    if input.trim() == "exit" {
+        return;
+    }
     let key = input.trim().to_string();
     print!("CA > ");
     std::io::stdout().flush().unwrap();
     std::io::stdin().read_line(&mut input).unwrap();
-    if input.trim() == "exit" { return; }
+    if input.trim() == "exit" {
+        return;
+    }
     let ca = input.trim().to_string();
-    println!("Creating SSL certificate for site: {}", site.name.clone().unwrap());    
+    println!(
+        "Creating SSL certificate for site: {}",
+        site.name.clone().unwrap()
+    );
     let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
     let mut current_site = site.clone();
     current_site.ssl = Some(true);
 
-    let new_ssl_details  = Ssl_Cert{
+    let new_ssl_details = Ssl_Cert {
         cert: Some(certificate),
         key: Some(key),
         ca_cert: Some(ca),
     };
 
-    let _ = provision_ssl(netlify,  current_site, new_ssl_details);
+    let _ = provision_ssl(netlify, current_site, new_ssl_details);
     let mut input = String::new();
     println!("Press enter to return to the main menu.");
     print!("> ");
@@ -323,7 +409,7 @@ fn check_input_length(input: &str, length: usize) -> bool {
 
 /// Convert a markdown file to an HTML file via the command line
 fn convert_md_to_html_cli() {
-    print!("\x1B[2J\x1B[1;1H");
+    // print!("\x1B[2J\x1B[1;1H");
     println!("Convert a markdown file to HTML:");
     println!("---------------------------------------");
     println!("Enter the name of the markdown file followed by the name of the output HTML file.");
@@ -367,7 +453,7 @@ fn create_site(
     netlify: Netlify,
     site_name: String,
 ) -> Result<SiteDetails, Box<dyn std::error::Error>> {
-    match netlify.create_site(SiteDetails{
+    match netlify.create_site(SiteDetails {
         name: Some(site_name),
         id: None,
         url: None,
@@ -444,4 +530,12 @@ fn provision_ssl(
             Err(e)
         }
     }
+}
+
+fn build_site_path(site: &SiteDetails) -> String {
+    format!(
+        "sites/{}_{}",
+        site.name.clone().unwrap(),
+        site.id.clone().unwrap()
+    )
 }

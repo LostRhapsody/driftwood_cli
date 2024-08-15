@@ -2,8 +2,8 @@ use std::fs;
 
 pub struct Post {
     pub title: String,
-    date: String,
-    content: String,
+    pub date: String,
+    pub content: String,
     pub filename: String,
 }
 
