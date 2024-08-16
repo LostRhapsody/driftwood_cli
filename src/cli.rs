@@ -1,11 +1,12 @@
 /// TODO - make a standard function for writing out menus to reduce repeat code
 /// TODO - make a standard function for reading input to reduce repeat code
 /// TODO - Rebuild the navigation so users can go back and forth between menus easier
-use std::{fs, io::Write, path::Path};
+use std::{fs, io::Write, path::Path, vec};
 
 use driftwood::Post;
 
 use chrono;
+use regex::Regex;
 
 use crate::netlify::{Netlify, SiteDetails, Ssl_Cert};
 
@@ -62,6 +63,17 @@ fn create_post(site: &SiteDetails) {
         return;
     }
 
+    // this is funny and ugly lol but it
+    // removes all special chars and white space in the file name
+    let re = Regex::new(r"[^a-zA-Z0-9\s]").unwrap();
+    let post_name = input.trim();
+    // remove all special chars, replace with whitespace
+    let post_name = re.replace_all(&post_name, " ");
+    // remove all extra whitespace (leave one space between words)
+    let post_name = post_name.split_whitespace().collect::<Vec<_>>().join(" ");
+    // replace all whitespace with a dash
+    let post_name = post_name.replace(" ", "-");
+
     // build the post path
     let post_path = &format!("{}/md_posts", build_site_path(site));
     let post_path = Path::new(post_path);
@@ -71,14 +83,13 @@ fn create_post(site: &SiteDetails) {
     }
 
     // build the title of the file and filename
-    let title = input.trim().to_string() + ".md";
-    let filename = format!("{}/{}", post_path.display(), title);
+    let filename = format!("{}/{}.md", post_path.display(), post_name);
 
     let date = chrono::Local::now();
     let date = date.date_naive().to_string();
 
     // create a new file in the 'posts' directory
-    let post = Post::new(title, date, "This is a test post".to_string(), filename);
+    let post = Post::new(post_name, date, "This is a test post".to_string(), filename);
 
     // write the post to disk
     fs::write(&post.filename, "").expect("Failed to write to file.");
@@ -278,8 +289,8 @@ fn deploy_site(site: &SiteDetails) {
 
     // first loop through the site's posts and convert them to HTML
     let site_path = build_site_path(site);
-    let post_path = format!("{}/md_posts", site_path);
-    let html_post_path = format!("{}/posts", site_path);
+    let post_path = format!("{}/md_posts", site_path.clone());
+    let html_post_path = format!("{}/posts", site_path.clone());
 
     // lol bad names... it's the PATH types of these string paths
     let post_path_path = Path::new(&post_path);
@@ -292,6 +303,8 @@ fn deploy_site(site: &SiteDetails) {
             .expect("Failed to create this site's 'md_posts' directory");
     }
 
+    let mut html_file_names = vec![];
+
     // loop through md posts
     for entry in fs::read_dir(post_path).unwrap() {
         // md filename
@@ -303,7 +316,7 @@ fn deploy_site(site: &SiteDetails) {
         // full path to html file
         let html_file_name = format!(
             "{}/posts/{}.html",
-            site_path,
+            site_path.clone(),
             entry.file_name().to_string_lossy()
         );
         println!("> {:?}", html_file_name);
@@ -316,12 +329,25 @@ fn deploy_site(site: &SiteDetails) {
             match success {
                 Ok(_) => {
                     println!("Successfully converted markdown to HTML.");
+                    // add this html file name to a vector of strings
+                    html_file_names.push(html_file_name);
                 }
                 Err(e) => {
                     println!("Failed to convert markdown to HTML.");
                     println!("Error: {:?}", e);
                 }
             }
+        }        
+    }
+
+    let template_success = Post::template_html(html_file_names, site_path.clone());
+    match template_success {
+        Ok(_) => {
+            println!("Successfully templated blog links.");
+        }
+        Err(e) => {
+            println!("Failed to template blog links.");
+            println!("Error: {:?}", e);
         }
     }
 

@@ -1,5 +1,3 @@
-use std::path::Path;
-
 pub mod cli;
 pub mod netlify;
 

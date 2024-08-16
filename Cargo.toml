@@ -21,3 +21,5 @@ serde_json = "1"
 sha1_smol = "1.0.1"
 # template engine
 tinytemplate = "1.1"
+# gotta have regex
+regex = "1"
