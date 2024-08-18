@@ -23,3 +23,7 @@ sha1_smol = "1.0.1"
 tinytemplate = "1.1"
 # gotta have regex
 regex = "1"
+# OAuth2.0
+oauth2 = "4.4.2"
+# Access .env file
+dotenv = "0.15"

@@ -1,6 +1,5 @@
-use pulldown_cmark::html;
 use serde::Serialize;
-use std::{error::Error, fs};
+use std::{error::Error, fs,env};
 use tinytemplate::TinyTemplate;
 
 pub struct Post {
@@ -115,4 +114,12 @@ impl Post {
         Ok(true)
     }
 
+}
+
+pub struct OAuth2 {}
+impl OAuth2 {
+    pub fn get_env_var(name:&str) -> Result<String, env::VarError> {
+        let var = env::var(name)?;
+        Ok(var)
+    }
 }

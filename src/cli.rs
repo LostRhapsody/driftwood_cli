@@ -1,14 +1,11 @@
 /// TODO - make a standard function for writing out menus to reduce repeat code
 /// TODO - make a standard function for reading input to reduce repeat code
 /// TODO - Rebuild the navigation so users can go back and forth between menus easier
-use std::{fs, io::Write, path::Path, vec};
-
-use driftwood::Post;
-
+use std::{fs, io::Write, path::Path, vec, env};
+use driftwood::{Post, OAuth2};
 use chrono;
 use regex::Regex;
-
-use crate::netlify::{Netlify, SiteDetails, Ssl_Cert};
+use crate::netlify::{self, Netlify, SiteDetails, Ssl_Cert};
 
 /// Draws the menu and all the options
 pub fn draw_menu() {
@@ -140,7 +137,7 @@ fn create_website() {
 
     let website_name = input.trim().to_string();
 
-    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let netlify: Netlify = Netlify::new();
     let _ = create_site(netlify, website_name);
 
     println!("Press enter to return to the main menu.");
@@ -150,7 +147,7 @@ fn create_website() {
 
 fn list_websites() {
     // grab all the sites
-    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let netlify: Netlify = Netlify::new();
     let site_details: Vec<SiteDetails> = get_sites(netlify);
 
     // print!("\x1B[2J\x1B[1;1H");
@@ -258,7 +255,7 @@ fn make_site_dir(site: &SiteDetails) {
 }
 
 fn update_site_name(site: &SiteDetails) {
-    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let netlify: Netlify = Netlify::new();
     // print!("\x1B[2J\x1B[1;1H");
     println!("Name: {}", site.name.clone().unwrap());
     println!("Enter the new name of your website.");
@@ -285,7 +282,7 @@ fn update_site_name(site: &SiteDetails) {
 }
 
 fn deploy_site(site: &SiteDetails) {
-    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let netlify: Netlify = Netlify::new();
 
     // first loop through the site's posts and convert them to HTML
     let site_path = build_site_path(site);
@@ -421,7 +418,7 @@ fn deploy_site(site: &SiteDetails) {
 }
 
 fn delete_site(site: &SiteDetails) {
-    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let netlify: Netlify = Netlify::new();
     // print!("\x1B[2J\x1B[1;1H");
     println!("Deleting: {}", site.name.clone().unwrap());
     println!("This will permanently delete the website.");
@@ -480,7 +477,7 @@ fn create_ssl_certificate(site: &SiteDetails) {
         "Creating SSL certificate for site: {}",
         site.name.clone().unwrap()
     );
-    let netlify: Netlify = Netlify::new("nfp_vc77UcLjcM57aomvo6UsxzJRdRdHNSQie33c");
+    let netlify: Netlify = Netlify::new();
     let mut current_site = site.clone();
     current_site.ssl = Some(true);
 
