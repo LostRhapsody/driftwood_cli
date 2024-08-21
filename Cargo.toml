@@ -27,3 +27,5 @@ regex = "1"
 oauth2 = "4.4.2"
 # Access .env file
 dotenv = "0.15"
+# For some fun error handling
+anyhow = "1.0"

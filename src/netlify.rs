@@ -1,30 +1,10 @@
-/*
-Forum post if I can't get implicit grant to work:
-Hi,
-
-I'm currently building an open-source app around Netlify's API, written in Rust.
-
-The problem I'm facing is that I can't seem to find a way to allow an end-user to authenticate with OAuth2.0 using their browser without including a client secret in my source code.
-
-If embedding the client secret in the source code or as an environment variable is actually not that big of a deal, then I suppose this question is irrelevant. Based on my research, I'm supposed to keep the client secret *a secret*, so I'm hoping to avoid this.
-
-I have a working flow currently, but the Client Secret is being provided. I tried including PKCE in my flow, as I read that it provides an extra layer of security if you're either embedding the Client Secret, or not providing one in the flow. However, when I try and include a PCKE in the auth flow, I receive:
-```
-invalid_grant: The provided authorization grant is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.
-```
-
-So, I'm assuming PKCE is not supported. That, or the Rust crate I'm using ([oauth2](https://docs.rs/oauth2/4.4.2/oauth2/index.html)) implements it in a way the Netlify API doesn't expect.
-
-Next I tried using an Implicit Grant. I tested this with Postman, and I'm able to retrieve a token without providing the Client Secret.
- */ 
-
-/// TODO - implicit grant
+/// TODO - Create a new server host to run the authentication logic through
 /// TODO - refresh token
 /// TODO - More templating logic
 use driftwood::OAuth2;
 use oauth2::{
     basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode, ClientId, ClientSecret,
-    CsrfToken, PkceCodeChallenge, RedirectUrl, TokenResponse, TokenUrl,
+    CsrfToken, RedirectUrl, TokenResponse, TokenUrl,
 };
 use reqwest::Url;
 /// Netlify Module
@@ -95,25 +75,25 @@ impl Netlify {
 
         // first check if there is a token on disk
         // if not, get a new token
-        // let token_file = Path::new("netlify_toasdasdken.json");
-        // if token_file.exists() {
-        //     println!("> Token file exists");
-        //     let token = fs::read_to_string(token_file).unwrap();
-        //     Netlify {
-        //         user_agent: user_agent.to_string(),
-        //         token: token,
-        //         url: base_url,
-        //     }
-        // } else {
-        //     println!("> Token file does not exist");
+        let token_file = Path::new("netlify_token.json");
+        if token_file.exists() {
+            println!("> Token file exists");
+            let token = fs::read_to_string(token_file).unwrap();
+            Netlify {
+                user_agent: user_agent.to_string(),
+                token: token,
+                url: base_url,
+            }
+        } else {
+            println!("> Token file does not exist");
             let token = Self::netlify_oauth2_code_grant().expect("Failed to retrieve token");
-            // fs::write(token_file, token.access_token().secret().as_bytes()).unwrap();
+            fs::write(token_file, token.access_token().secret().as_bytes()).unwrap();
             Netlify {
                 user_agent: user_agent.to_string(),
                 token: token.access_token().secret().to_string(),
                 url: base_url,
             }
-        // }
+        }
     }
 
     /// Get the details of a site
@@ -583,6 +563,7 @@ impl Netlify {
 
         Ok(file_hashes)
     }
+    
     // pub fn oauth2() -> Result<StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>, Box<dyn Error>> {
     pub fn netlify_oauth2_code_grant() -> Result<
         oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>,
@@ -605,14 +586,9 @@ impl Netlify {
 
         println!("> Generating PKCE challenge...");
 
-        // Netlify does not seem to support PKCE (Proof Key for Code Exchange)
-        // When included, the server responds with "invalid_grant"
-        // let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
-
         // Generate the authorization URL
         let (auth_url, csrf_token) = client
             .authorize_url(CsrfToken::new_random)
-            // .set_pkce_challenge(pkce_code_challenge)
             .url();
 
         println!("Open this URL in your browser:\n{auth_url}\n");
@@ -674,7 +650,6 @@ impl Netlify {
         // Exchange the authorization code for an access token
         let token_result = client
             .exchange_code(code)
-            // .set_pkce_verifier(pkce_code_verifier)
             .request(http_client);
 
         match token_result {
@@ -693,118 +668,5 @@ impl Netlify {
                 Err(())
             }
         }
-    }
-
-    pub fn netlify_oauth2_implicit_grant() -> 
-    Result<String,()> {
-        println!("> Starting Netlify OAuth2 flow");
-        let client = BasicClient::new(
-            ClientId::new(OAuth2::get_env_var("NETLIFY_CLIENT_ID").unwrap()),
-            None,
-            AuthUrl::new("https://app.netlify.com/authorize".to_string()).unwrap(),
-            None
-        ).set_redirect_uri(
-            RedirectUrl::new(OAuth2::get_env_var("NETLIFY_REDIRECT_URI").unwrap()).unwrap(),
-        );
-
-        // Generate the authorization URL
-        let (auth_url, csrf_token) = client
-            .authorize_url(CsrfToken::new_random)
-            .use_implicit_flow()
-            .url();
-
-        println!("Open this URL in your browser:\n{auth_url}\n");
-
-        let (implicit_token) = {
-            // A very naive implementation of the redirect server.
-            let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-
-            // The server will terminate itself after collecting the first code.
-            let Some(mut stream) = listener.incoming().flatten().next() else {
-                panic!("listener terminated without accepting a connection");
-            };
-
-            let mut reader = BufReader::new(&stream);
-
-            let mut request_line = String::new();
-            reader.read_line(&mut request_line).unwrap();
-
-            println!("Request line: {:?}", request_line);
-
-            let redirect_url = request_line.split_whitespace().nth(1).unwrap();
-            println!("Redirect URL: {:?}", redirect_url);
-            let url = Url::parse(&("http://localhost".to_string() + redirect_url)).unwrap();
-
-            // extract the access_token from the url
-            // the query pairs are formatted wrong, so the access token starts with
-            // a '#' instead of a '?'
-            
-            println!("URL: {:?}", url.to_string().clone());
-
-            let implicit_token = url
-                .path()
-                .to_string();
-
-            println!("Implicit token: {:?}", implicit_token);
-
-            // let implicit_token = url
-            //     .query_pairs()
-            //     .find(|(key, _)| key == "access_token")
-            //     .map(|(_, state)| String::from(state.into_owned()))
-            //     .unwrap();
-
-            // let code = url
-            //     .query_pairs()
-            //     .find(|(key, _)| key == "code")
-            //     .map(|(_, code)| AuthorizationCode::new(code.into_owned()))
-            //     .unwrap();
-
-            // let state = url
-            //     .query_pairs()
-            //     .find(|(key, _)| key == "state")
-            //     .map(|(_, state)| CsrfToken::new(state.into_owned()))
-            //     .unwrap();
-
-            let message = "Driftwood authorization complete! You can close this window now.";
-            let response = format!(
-                "HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
-                message.len(),
-                message
-            );
-            stream.write_all(response.as_bytes()).unwrap();
-
-            (implicit_token)
-        };
-
-        println!("Netlify token:\n{}\n", implicit_token);
-        Ok(implicit_token)
-        // println!(
-        //     "Netlify state:\n{} (expected `{}`)\n",
-        //     state.secret(),
-        //     csrf_token.secret()
-        // );
-
-        // // Exchange the authorization code for an access token
-        // let token_result = client
-        //     .exchange_code(code)
-        //     // .set_pkce_verifier(pkce_code_verifier)
-        //     .request(http_client);
-
-        // match token_result {
-        //     Ok(token_result) => {
-        //         println!(
-        //             "Netlify Access token: {}",
-        //             token_result.access_token().secret()
-        //         );
-        //         Ok(token_result)
-        //     }
-        //     Err(err) => {
-        //         println!("Failed to get token: {}", err);
-        //         if let oauth2::RequestTokenError::ServerResponse(body) = err {
-        //             println!("Raw server response: {}", body);
-        //         }
-        //         Err(())
-        //     }
-        // }
     }
 }

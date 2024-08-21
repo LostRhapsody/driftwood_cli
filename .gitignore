@@ -1,3 +1,4 @@
 /target
 /sites
 .env
+netlify_token.json

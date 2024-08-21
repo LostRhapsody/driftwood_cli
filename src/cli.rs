@@ -6,63 +6,56 @@ use driftwood::{Post, OAuth2};
 use chrono;
 use regex::Regex;
 use crate::netlify::{self, Netlify, SiteDetails, Ssl_Cert};
+use anyhow::{Context, Result};
 
 /// Draws the menu and all the options
-pub fn draw_menu() {
+pub fn draw_menu() -> Result<()> {
     loop {
-        // clear the terminal
-        // print!("\x1B[2J\x1B[1;1H");
         println!("Driftwood - Deploy blogs in one click");
         println!("---------------------------------------");
         println!("Options:");
         println!("1. Create a site");
         println!("2. Select a site");
-        println!("Type 'exit' to quit.");
+        println!("Type 'q' to quit.");
         print!("> ");
-        std::io::stdout().flush().unwrap();
+        std::io::stdout().flush().context("Failed to flush stdout")?;
 
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
+        std::io::stdin().read_line(&mut input).context("Failed to read line")?;
 
-        match input.trim() {
+        let _ = match input.trim() {
             "1" => create_website(),
             "2" => list_websites(),
-            "exit" => break,
-            _ => println!("Invalid option. Please try again."),
-        }
-
-        // Process the input here
-        if input.trim() == "exit" {
-            break;
-        }
+            "q" => break,
+            _ => print_error_message("Invalid option. Please try again."),
+        };
     }
+    Ok(())
 }
 
-fn create_post(site: &SiteDetails) {
-    // clear the terminal
-    // print!("\x1B[2J\x1B[1;1H");
+fn create_post(site: &SiteDetails) -> Result<()> {
     println!("Create a blog post");
     println!("---------------------------------------");
     println!("Enter the name of the blog post.");
-    println!("Type 'exit' to quit.");
+    println!("Type 'q' to quit.");    
     print!("> ");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
 
     // standard input stuff
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
     // Process the input here
-    if input.trim() == "exit" {
-        return;
+    if input.trim() == "q" {
+        return Ok(());
     }
     // needs to be at least 1 characters long
     if !check_input_length(&input, 2) {
-        return;
+        return Ok(());
     }
 
     // this is funny and ugly lol but it
     // removes all special chars and white space in the file name
-    let re = Regex::new(r"[^a-zA-Z0-9\s]").unwrap();
+    let re = Regex::new(r"[^a-zA-Z0-9\s]").context("Failed to create regex")?;
     let post_name = input.trim();
     // remove all special chars, replace with whitespace
     let post_name = re.replace_all(&post_name, " ");
@@ -76,7 +69,7 @@ fn create_post(site: &SiteDetails) {
     let post_path = Path::new(post_path);
 
     if !post_path.exists() {
-        fs::create_dir(post_path).expect("Failed to create this site's 'md_posts' directory");
+        fs::create_dir(post_path).context("Failed to create this site's 'md_posts' directory")?;
     }
 
     // build the title of the file and filename
@@ -89,19 +82,19 @@ fn create_post(site: &SiteDetails) {
     let post = Post::new(post_name, date, "This is a test post".to_string(), filename);
 
     // write the post to disk
-    fs::write(&post.filename, "").expect("Failed to write to file.");
+    fs::write(&post.filename, "").context("Failed to write to file.")?;
 
     // open the post file written to disk and write the title and timestamp to the file
     let mut file = fs::OpenOptions::new()
         .write(true)
         .append(true)
         .open(&post.filename)
-        .expect("Failed to open file.");
+        .context("Failed to open file.")?;
 
     let post_content = format!("# {}\nDate: {}", post.title, post.date);
 
     file.write_all(post_content.as_bytes())
-        .expect("Failed to write to file.");
+        .context("Failed to write to file.")?;
 
     println!(
         "Post `{}` was created successfully. Edit your new file in: {}",
@@ -110,29 +103,29 @@ fn create_post(site: &SiteDetails) {
 
     println!("Press enter to return to the main menu.");
     print!("> ");
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
+    Ok(())
 }
 
-fn create_website() {
-    // print!("\x1B[2J\x1B[1;1H");
+fn create_website() -> Result<()> {
     println!("Create a website");
     println!("---------------------------------------");
     println!("Enter the name of your website.");
     println!("Note: Special characters, spaces, and punctuation will be replaced with a dash '-'.");
-    println!("Type 'exit' to return to the main menu.");
+    println!("Type 'q' to return to the main menu.");
     print!("> ");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
 
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
 
     // Process the input here
-    if input.trim() == "exit" {
-        return;
+    if input.trim() == "q" {
+        return Ok(());
     }
 
     if !check_input_length(&input, 2) {
-        return;
+        return Ok(());
     }
 
     let website_name = input.trim().to_string();
@@ -142,15 +135,17 @@ fn create_website() {
 
     println!("Press enter to return to the main menu.");
     print!("> ");
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
+
+    Ok(())
 }
 
-fn list_websites() {
+fn list_websites() -> Result<()> {
     // grab all the sites
     let netlify: Netlify = Netlify::new();
     let site_details: Vec<SiteDetails> = get_sites(netlify);
 
-    // print!("\x1B[2J\x1B[1;1H");
+    
     println!("Your Websites");
     println!("---------------------------------------");
     // print out all site names
@@ -159,20 +154,20 @@ fn list_websites() {
     });
     println!("---------------------------------------");
     println!("To edit a website's details, enter the site's name.");
-    println!("Type 'exit' to return to the main menu.");
+    println!("Type 'q' to return to the main menu.");
     print!("> ");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
 
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
 
     // Process the input here
-    if input.trim() == "exit" {
-        return;
+    if input.trim() == "q" {
+        return Ok(());
     }
 
     if !check_input_length(&input, 2) {
-        return;
+        return Ok(());
     }
 
     let site_id = input.trim().to_string();
@@ -187,10 +182,12 @@ fn list_websites() {
         make_site_dir(site.unwrap());
         update_site(site.unwrap());
     }
+
+    Ok(())
 }
 
-fn update_site(site: &SiteDetails) {
-    // print!("\x1B[2J\x1B[1;1H");
+fn update_site(site: &SiteDetails) -> Result<()> {
+    
     println!("Name: {}", site.name.clone().unwrap());
     println!("Id: {}", site.name.clone().unwrap());
     println!("URL: {}", site.name.clone().unwrap());
@@ -202,20 +199,20 @@ fn update_site(site: &SiteDetails) {
     println!("3. Update the site's name");
     println!("4. Delete the site");
     println!("5. Provision an SSL certificate");
-    println!("Type 'exit' to return to the main menu.");
+    println!("Type 'q' to return to the main menu.");
     print!("> ");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
 
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
 
     // Process the input here
-    if input.trim() == "exit" {
-        return;
+    if input.trim() == "q" {
+        return Ok(());
     }
 
     if !check_input_length(&input, 2) {
-        return;
+        return Ok(());
     }
 
     match input.trim() {
@@ -224,8 +221,15 @@ fn update_site(site: &SiteDetails) {
         "3" => update_site_name(site),
         "4" => delete_site(site),
         "5" => create_ssl_certificate(site),
-        _ => println!("Invalid option. Returning to main menu."),
-    }
+        _ => print_error_message("Invalid option. Returning to main menu."),
+    };
+
+    Ok(())
+}
+
+fn print_error_message(msg: &str) -> Result<()> {
+    println!("{}", msg);
+    Ok(())
 }
 
 /// Creates a directory for the site on disk using site.name + site.id
@@ -254,22 +258,22 @@ fn make_site_dir(site: &SiteDetails) {
     }
 }
 
-fn update_site_name(site: &SiteDetails) {
+fn update_site_name(site: &SiteDetails) -> Result<()> {
     let netlify: Netlify = Netlify::new();
-    // print!("\x1B[2J\x1B[1;1H");
+    
     println!("Name: {}", site.name.clone().unwrap());
     println!("Enter the new name of your website.");
     println!("Note: Special characters, spaces, and punctuation will be replaced with a dash '-'.");
-    println!("Type 'exit' to return to the main menu.");
+    println!("Type 'q' to return to the main menu.");
     print!("> ");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
 
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
 
     // Process the input here
-    if input.trim() == "exit" {
-        return;
+    if input.trim() == "q" {
+        return Ok(());
     }
 
     let site_name = input.trim().to_string();
@@ -279,9 +283,11 @@ fn update_site_name(site: &SiteDetails) {
     let existing_site = site.clone();
 
     let _ = update_site_details(netlify, existing_site, new_site);
+
+    Ok(())
 }
 
-fn deploy_site(site: &SiteDetails) {
+fn deploy_site(site: &SiteDetails) -> Result<()> {
     let netlify: Netlify = Netlify::new();
 
     // first loop through the site's posts and convert them to HTML
@@ -364,7 +370,7 @@ fn deploy_site(site: &SiteDetails) {
         println!("Press enter to return to the main menu.");
         print!("> ");
         std::io::stdin().read_line(&mut String::new()).unwrap();
-        return;
+        return Ok(());
     }    
 
     // unwrap the result to get the FileHashes struct
@@ -415,62 +421,66 @@ fn deploy_site(site: &SiteDetails) {
             println!("Error: {:?}", e);
         }
     }
+
+    Ok(())
 }
 
-fn delete_site(site: &SiteDetails) {
+fn delete_site(site: &SiteDetails) -> Result<()> {
     let netlify: Netlify = Netlify::new();
-    // print!("\x1B[2J\x1B[1;1H");
+    
     println!("Deleting: {}", site.name.clone().unwrap());
     println!("This will permanently delete the website.");
     println!("Are you sure you want to continue?");
     println!("Type 'yes' to delete.");
-    println!("Type 'exit' to return to the main menu.");
+    println!("Type 'q' to return to the main menu.");
     print!("> ");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
 
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
 
     // Process the input here
-    if input.trim() == "exit" {
-        return;
+    if input.trim() == "q" {
+        return Ok(());
     } else if input.trim() == "yes" {
         let _ = netlify.delete_site(site.clone());
         println!("Site deleted.");
         println!("Press enter to return to the main menu.");
         print!("> ");
-        std::io::stdin().read_line(&mut input).unwrap();
+        std::io::stdin().read_line(&mut input).context("Failed to read line")?;
     } else {
         println!("Invalid option. Returning to main menu.");
     }
+
+    Ok(())
 }
 
-fn create_ssl_certificate(site: &SiteDetails) {
-    // print!("\x1B[2J\x1B[1;1H");
+fn create_ssl_certificate(site: &SiteDetails) -> Result<()> {
+    
     println!("Enter the details for your SSL certificate.");
-    println!("Type 'exit' to return to the main menu.");
+    println!("Type 'q' to return to the main menu.");
     print!("Certificate > ");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
 
     let mut input = String::new();
 
-    std::io::stdin().read_line(&mut input).unwrap();
-    if input.trim() == "exit" {
-        return;
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
+    if input.trim() == "q" {
+        return Ok(());
     }
     let certificate = input.trim().to_string();
     print!("Key > ");
-    std::io::stdout().flush().unwrap();
-    std::io::stdin().read_line(&mut input).unwrap();
-    if input.trim() == "exit" {
-        return;
+    std::io::stdout().flush().context("Failed to flush stdout")?;
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
+    if input.trim() == "q" {
+        return Ok(());
     }
     let key = input.trim().to_string();
     print!("CA > ");
-    std::io::stdout().flush().unwrap();
-    std::io::stdin().read_line(&mut input).unwrap();
-    if input.trim() == "exit" {
-        return;
+    std::io::stdout().flush().context("Failed to flush stdout")?;
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
+    if input.trim() == "q" {
+        return Ok(());
     }
     let ca = input.trim().to_string();
     println!(
@@ -491,8 +501,10 @@ fn create_ssl_certificate(site: &SiteDetails) {
     let mut input = String::new();
     println!("Press enter to return to the main menu.");
     print!("> ");
-    std::io::stdout().flush().unwrap();
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
+
+    Ok(())
 }
 
 fn check_input_length(input: &str, length: usize) -> bool {
@@ -509,14 +521,14 @@ fn check_input_length(input: &str, length: usize) -> bool {
 }
 
 /// Convert a markdown file to an HTML file via the command line
-fn convert_md_to_html_cli() {
-    // print!("\x1B[2J\x1B[1;1H");
+fn convert_md_to_html_cli() -> Result<()> {
+    
     println!("Convert a markdown file to HTML:");
     println!("---------------------------------------");
     println!("Enter the name of the markdown file followed by the name of the output HTML file.");
-    println!("Type 'exit' to return to the main menu.");
+    println!("Type 'q' to return to the main menu.");
     print!("> ");
-    std::io::stdout().flush().unwrap();
+    std::io::stdout().flush().context("Failed to flush stdout")?;
 
     let mut input = String::new();
 
@@ -526,11 +538,11 @@ fn convert_md_to_html_cli() {
 
     // needs to be at least 3 characters long
     if !check_input_length(&input, 3) {
-        return;
+        return Ok(());
     }
 
-    if input.trim() == "exit" {
-        return;
+    if input.trim() == "q" {
+        return Ok(());
     }
 
     let args: Vec<&str> = input.trim().split(" ").collect();
@@ -547,7 +559,9 @@ fn convert_md_to_html_cli() {
     }
     println!("Press enter to return to the main menu.");
     print!("> ");
-    std::io::stdin().read_line(&mut input).unwrap();
+    std::io::stdin().read_line(&mut input).context("Failed to read line")?;
+
+    Ok(())
 }
 
 /// Add a new site
