@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{POST_TITLE} - My Driftwood Blog</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            gap: 40px;
+        }
+        nav {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            border-radius: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        nav a {
+            color: #333;
+            text-decoration: none;
+            margin: 0 10px;
+            font-weight: bold;
+        }
+        .hero {
+            background-color: #3498db;
+            color: white;
+            text-align: center;
+            padding: 100px 0;
+            margin-bottom: 2em;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        main {
+            flex: 1;
+            background-color: white;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .toc {
+            width: 250px;
+            position: sticky;
+            top: 100px;
+            align-self: flex-start;
+            background-color: white;
+            padding: 1em;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .toc h2 {
+            margin-top: 0;
+        }
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .toc ul ul {
+            padding-left: 20px;
+        }
+        .toc a {
+            color: #333;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        footer {
+            text-align: center;
+            margin-top: 2em;
+            color: #7f8c8d;
+            padding: 20px;
+        }
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+            .toc {
+                width: auto;
+                position: static;
+                margin-bottom: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+    </nav>
+
+    <header class="hero">
+        <div class="container">
+            <h1>{POST_TITLE}</h1>
+        </div>
+    </header>
+    
+    <div class="container">
+        <aside class="toc">
+            <h2>Table of Contents</h2>
+            <ul id="toc-list"></ul>
+        </aside>
+        <main>
+            {POST_CONTENT}
+        </main>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 My Driftwood Blog. All rights reserved.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tocList = document.getElementById('toc-list');
+            const headers = document.querySelectorAll('main h1, main h2, main h3');
+            const tocItems = [];
+
+            headers.forEach((header, index) => {
+                // Create an ID for the header if it doesn't have one
+                if (!header.id) {
+                    header.id = `header-${index}`;
+                }
+
+                const listItem = document.createElement('li');
+                const link = document.createElement('a');
+                link.href = `#${header.id}`;
+                link.textContent = header.textContent;
+                listItem.appendChild(link);
+
+                // Adjust indentation based on header level
+                if (header.tagName === 'H2') {
+                    listItem.style.marginLeft = '20px';
+                } else if (header.tagName === 'H3') {
+                    listItem.style.marginLeft = '40px';
+                }
+
+                tocItems.push(listItem);
+            });
+
+            tocItems.forEach(item => tocList.appendChild(item));
+        });
+    </script>
+</body>
+</html>
