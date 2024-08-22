@@ -1,6 +1,5 @@
 /// TODO - Create a new server host to run the authentication logic through
 /// TODO - refresh token
-/// TODO - More templating logic
 use driftwood::OAuth2;
 use oauth2::{
     basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode, ClientId, ClientSecret,

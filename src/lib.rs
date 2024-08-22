@@ -1,5 +1,16 @@
+/// TODO - Find out why the date is still showing up on the blog post page
+/// TODO - Add a nicer formatted date to the blog cards and post page
+/// TODO - The date doesn't show up on the blog cards
+/// TODO - replace {SITE_TITLE} with the actual site title
+/// TODO - Update blog card title's for dark mode, can't read them
+/// TODO - space out the links in the table of contents
+/// TODO - Arrange the blog cards in a grid
+/// TODO - Make the hero section on the home page an image
+/// TODO - Add a customizable favicon for the site
+/// TODO - Add an 'about' page
+/// TODO - Center the title on blog post pages
 use serde::Serialize;
-use std::{error::Error, fs,env};
+use std::{env, error::Error, fs, path::Path};
 use tinytemplate::TinyTemplate;
 
 pub struct Post {
@@ -13,18 +24,21 @@ pub struct Post {
 struct Context {
     filename: String,
     title: String,
+    date: String,
+    excerpt: String,
+    image: String,
 }
-
-static LINK_TEMPLATE: &'static str = "
-    <a class='card' href='{filename}'>
-        <img src='https://images.unsplash.com/photo-1615147342761-9238e15d8b96?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1001&q=80' class='card__image' alt='brown couch' />
-        <div class='card__content'>
-            <time datetime='2021-03-30' class='card__date'>30 März 2021</time>
-            <span class='card__title'>{title}<span>
+// https://images.unsplash.com/photo-1615147342761-9238e15d8b96?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1001&q=80
+static LINK_TEMPLATE: &'static str = r#"
+    <div class="card">
+        <img src="{image}" class="card__image" alt="{title}" />
+        <div class="card__content">
+            <time datetime="{date}" class="card__date">{date}</time>
+            <h2 class="card__title"><a href="{filename}">{title}</a></h2>
+            <p>{excerpt}</p>
         </div>
-    </a>
-    <br />
-";
+    </div>
+"#;
 
 impl Post {
     pub fn new(title: String, date: String, content: String, filename: String) -> Post {
@@ -52,56 +66,93 @@ impl Post {
     }
 
     pub fn template_html(posts: Vec<String>, site_path: String) -> Result<bool, Box<dyn Error>> {
-        println!(">> Template HTML");
+        println!(">> Templating HTML");
 
         // create the <a> tag template
         let mut tt = TinyTemplate::new();
         tt.add_template("link", LINK_TEMPLATE)?;
 
+        let site_path = Path::new(&site_path);        
+
+        /***********************
+        * Build the Home page  *
+        ***********************/
+
         // read in the index-template.html file
-        let template_filename = format!("{}/index-template.html", site_path);
+        let template_filename = site_path.join("index-template.html");
         let template_file = fs::read_to_string(template_filename.clone())?;
-        let index_filename = format!("{}/index.html", site_path);
-        println!(">> Template Filename: {}", template_filename);
-        println!(">> Template File: {}", template_file);
 
         let mut new_html_output = String::new();
+
         // read in each line of the template_file until you hit the <!-- blog links --> line
         for line in template_file.lines() {
-            println!(">> Line: {}", line);
-
             // once we find the line, loop through each post and insert it as a link
             if line.trim() == "<!-- blog links -->" {
+
                 // iterate through all the Posts
                 posts.iter().for_each(|post| {
                     println!(">> Post: {}", post);
 
                     // each post contains its FULL path on disk,
                     // but we just need the path starting from the /posts/ directory
-                    let post_file_path = std::path::Path::new(&post);
-                    let post_file_path = post_file_path.file_name().unwrap().to_str().unwrap();
+                    let post_file_path = Path::new(&post);
+                    let post_file = fs::read_to_string(post_file_path).unwrap();
+                    let mut date = String::new();
+                    let mut excerpt = String::new();
+                    let mut image = String::new();
+                    let mut new_post_file = String::new();
 
-                    println!(">> Post File Path: {}", post_file_path);
+                    // extract the date, excerpt, and image from the post_file
+                    for line in post_file.lines() {
+                        if line.trim().starts_with("date:") {
+                            date.push_str(line.replace("date:", "").trim());
+                            continue;
+                        }
+                        else if line.trim().starts_with("excerpt:") {
+                            excerpt.push_str(line.replace("excerpt:", "").trim());
+                            continue;
+                        }
+                        else if line.trim().starts_with("image:") {
+                            image.push_str(line.replace("image:", "").trim());
+                            continue;
+                        } else {
+                            // put all the lines, except the above three, into new_post_file
+                            new_post_file.push_str(line);
+                            new_post_file.push_str("\n\r");
+                        }
+                    }
+
+                    let _ = fs::write(post_file_path, &new_post_file);
+
+                    let post_file_path = post_file_path
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .expect("Failed to convert post file path to string");
+
 
                     // also create a post title out of that
-                    let post_title = post_file_path.replace(".html", "");
-                    let post_title = post_title.replace(".md", "");
-                    let post_title = post_title.replace("-", " ");
+                    let post_title = post_file_path
+                        .replace(".html", "")
+                        .replace(".md", "")
+                        .replace("-", " ");
 
-                    println!(">> Post Title: {}", post_title);
-
+                    // create the context/data for the template
                     let context = Context {
                         filename: format!("/posts/{}", post_file_path),
                         title: post_title,
+                        date: date,
+                        excerpt: excerpt,
+                        image: image,
                     };
 
                     let rendered = tt
                         .render("link", &context)
-                        .expect("Tried templating the link context, failed haha");
+                        .expect("Failed templating the blog link context");
 
-                    println!(">> Context: {:?}", context.filename);
                     new_html_output.push_str(&rendered);
                     new_html_output.push_str("\n\r");
+                    
                 });
             }
             // take every line we read in and add it to the new_html_output
@@ -109,7 +160,63 @@ impl Post {
             new_html_output.push_str("\n\r");
         }
 
+        let index_filename = site_path.join("index.html");
         fs::write(index_filename, &new_html_output)?;
+
+        /***********************
+        *Build the Posts pages *
+        ***********************/
+        let post_template_filename = site_path.join("post-template.html");
+        let post_template_file = fs::read_to_string(post_template_filename.clone())?;
+
+
+        let posts_path = site_path.join("posts");
+        let posts_files = fs::read_dir(posts_path)?;
+        for post in posts_files {
+            
+            let post_path = post.unwrap().path();
+
+            println!(">> Post: {}", post_path.to_str().unwrap());
+
+            let post_file = fs::read_to_string(post_path.clone())?;
+
+            let mut new_html_output = String::new();
+
+            for line in post_template_file.lines() {
+                println!("line: {}", line);
+                if line.trim() == "{POST_TITLE}" {
+
+                    let post_file_path = post_path
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .expect("Failed to convert post file path to string");
+
+                    // create a post title out of that
+                    let post_title = post_file_path
+                        .replace(".html", "")
+                        .replace(".md", "")
+                        .replace("-", " ");
+
+                    new_html_output.push_str(&post_title);
+                    new_html_output.push_str("\n\r");
+                    // skip to the next loop
+                    continue;
+                }
+                if line.trim() == "{POST_CONTENT}" {
+                    new_html_output.push_str(&post_file);                
+                    new_html_output.push_str("\n\r");
+                    // skip to the next loop
+                    continue;
+                }
+                new_html_output.push_str(line);
+            new_html_output.push_str("\n\r");
+            }
+
+            fs::write(post_path, &new_html_output)?;
+
+        }
+
 
         Ok(true)
     }

@@ -3,15 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{POST_TITLE} - My Driftwood Blog</title>
+    <title>
+        {POST_TITLE}
+    </title>
     <style>
+        :root {
+            --bg-color: #f4f4f4;
+            --text-color: #333;
+            --card-bg: white;
+            --hero-bg: #3498db;
+            --hero-text: white;
+            --nav-bg: rgba(255, 255, 255, 0.8);
+            --nav-text: #333;
+            --toc-bg: white;
+        }
+        .dark-mode {
+            --bg-color: #1a1a1a;
+            --text-color: #f4f4f4;
+            --card-bg: #2c2c2c;
+            --hero-bg: #2980b9;
+            --hero-text: #f4f4f4;
+            --nav-bg: rgba(44, 44, 44, 0.8);
+            --nav-text: #f4f4f4;
+            --toc-bg: #2c2c2c;
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: var(--text-color);
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
+            background-color: var(--bg-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .container {
             max-width: 1200px;
@@ -25,24 +48,26 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(255, 255, 255, 0.8);
+            background-color: var(--nav-bg);
             padding: 10px 20px;
             border-radius: 25px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 1000;
+            transition: background-color 0.3s ease;
         }
         nav a {
-            color: #333;
+            color: var(--nav-text);
             text-decoration: none;
             margin: 0 10px;
             font-weight: bold;
         }
         .hero {
-            background-color: #3498db;
-            color: white;
+            background-color: var(--hero-bg);
+            color: var(--hero-text);
             text-align: center;
             padding: 100px 0;
             margin-bottom: 2em;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         h1 {
             margin: 0;
@@ -50,20 +75,22 @@
         }
         main {
             flex: 1;
-            background-color: white;
+            background-color: var(--card-bg);
             padding: 2em;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+            transition: background-color 0.3s ease;
         }
         .toc {
             width: 250px;
             position: sticky;
             top: 100px;
             align-self: flex-start;
-            background-color: white;
+            background-color: var(--toc-bg);
             padding: 1em;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+            transition: background-color 0.3s ease;
         }
         .toc h2 {
             margin-top: 0;
@@ -76,7 +103,7 @@
             padding-left: 20px;
         }
         .toc a {
-            color: #333;
+            color: var(--text-color);
             text-decoration: none;
         }
         .toc a:hover {
@@ -87,6 +114,16 @@
             margin-top: 2em;
             color: #7f8c8d;
             padding: 20px;
+        }
+        .mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            z-index: 1001;
         }
         @media (max-width: 1024px) {
             .container {
@@ -101,15 +138,19 @@
     </style>
 </head>
 <body>
+    <button class="mode-toggle" id="mode-toggle" aria-label="Toggle dark mode">☀️</button>
+    
     <nav>
-        <a href="index.html">Home</a>
-        <a href="#about">About</a>
-        <a href="#contact">Contact</a>
+        <a href="/">Home</a>
+        <!-- <a href="#about">About</a>
+        <a href="#contact">Contact</a> -->
     </nav>
 
     <header class="hero">
         <div class="container">
-            <h1>{POST_TITLE}</h1>
+            <h1>
+                {POST_TITLE}
+            </h1>
         </div>
     </header>
     
@@ -128,13 +169,36 @@
     </footer>
 
     <script>
+        const modeToggle = document.getElementById('mode-toggle');
+        const body = document.body;
+
+        function setDarkMode(isDark) {
+            if (isDark) {
+                body.classList.add('dark-mode');
+                modeToggle.textContent = '🌙';
+                localStorage.setItem('dark_mode', 'true');
+            } else {
+                body.classList.remove('dark-mode');
+                modeToggle.textContent = '☀️';
+                localStorage.setItem('dark_mode', 'false');
+            }
+        }
+
+        // Check user's preference from localStorage
+        const isDarkMode = localStorage.getItem('dark_mode') === 'true';
+        setDarkMode(isDarkMode);
+
+        modeToggle.addEventListener('click', () => {
+            setDarkMode(!body.classList.contains('dark-mode'));
+        });
+
+        // Table of Contents generation
         document.addEventListener('DOMContentLoaded', function() {
             const tocList = document.getElementById('toc-list');
             const headers = document.querySelectorAll('main h1, main h2, main h3');
             const tocItems = [];
 
             headers.forEach((header, index) => {
-                // Create an ID for the header if it doesn't have one
                 if (!header.id) {
                     header.id = `header-${index}`;
                 }
@@ -145,7 +209,6 @@
                 link.textContent = header.textContent;
                 listItem.appendChild(link);
 
-                // Adjust indentation based on header level
                 if (header.tagName === 'H2') {
                     listItem.style.marginLeft = '20px';
                 } else if (header.tagName === 'H3') {
