@@ -70,7 +70,7 @@ impl Netlify {
         let user_agent: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
         // define the base URL
-        let base_url: String = String::from(OAuth2::get_env_var("NETLIFY_BASE_URL").unwrap());
+        let base_url: String = String::from(OAuth2::get_env_var("NETLIFY_BASE_URL").expect("Failed to get NETLIFY_BASE_URL from .env file"));
 
         // first check if there is a token on disk
         // if not, get a new token

@@ -28,7 +28,6 @@ struct Context {
     excerpt: String,
     image: String,
 }
-// https://images.unsplash.com/photo-1615147342761-9238e15d8b96?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1001&q=80
 static LINK_TEMPLATE: &'static str = r#"
     <div class="card">
         <img src="{image}" class="card__image" alt="{title}" />
@@ -104,8 +103,8 @@ impl Post {
 
                     // extract the date, excerpt, and image from the post_file
                     for line in post_file.lines() {
-                        if line.trim().starts_with("date:") {
-                            date.push_str(line.replace("date:", "").trim());
+                        if line.trim().starts_with("<p>date:") {
+                            date.push_str(line.replace("<p>date:", "").trim());
                             continue;
                         }
                         else if line.trim().starts_with("excerpt:") {

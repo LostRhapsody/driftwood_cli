@@ -2,3 +2,4 @@
 /sites
 .env
 netlify_token.json
+devcontainer.json

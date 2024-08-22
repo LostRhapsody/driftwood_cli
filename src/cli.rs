@@ -99,7 +99,14 @@ fn create_post(site: &SiteDetails) -> Result<()> {
         .open(&post.filename)
         .context("Failed to open file.")?;
 
-    let post_content = format!("# {}\nDate: {}", post.title, post.date);
+    let post_content = format!(
+        "date:{}\nexcerpt:{}\nimage:{}\n# {}\n## Date: {}", 
+        post.date,
+        "my_excerpt",
+        "https://images.unsplash.com/photo-1615147342761-9238e15d8b96?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1001&q=80",
+        post.title, 
+        post.date,
+    );
 
     file.write_all(post_content.as_bytes())
         .context("Failed to write to file.")?;
