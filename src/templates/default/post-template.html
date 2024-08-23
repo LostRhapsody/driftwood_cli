@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
-        {POST_TITLE}
+        {title}
     </title>
     <style>
-        :root {
+        :root \{
             --bg-color: #f4f4f4;
             --text-color: #333;
             --card-bg: white;
@@ -17,7 +17,7 @@
             --nav-text: #333;
             --toc-bg: white;
         }
-        .dark-mode {
+        .dark-mode \{
             --bg-color: #1a1a1a;
             --text-color: #f4f4f4;
             --card-bg: #2c2c2c;
@@ -27,7 +27,7 @@
             --nav-text: #f4f4f4;
             --toc-bg: #2c2c2c;
         }
-        body {
+        body \{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: var(--text-color);
@@ -36,14 +36,14 @@
             background-color: var(--bg-color);
             transition: background-color 0.3s ease, color 0.3s ease;
         }
-        .container {
+        .container \{
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             display: flex;
             gap: 40px;
         }
-        nav {
+        nav \{
             position: fixed;
             top: 20px;
             left: 50%;
@@ -55,13 +55,13 @@
             z-index: 1000;
             transition: background-color 0.3s ease;
         }
-        nav a {
+        nav a \{
             color: var(--nav-text);
             text-decoration: none;
             margin: 0 10px;
             font-weight: bold;
         }
-        .hero {
+        .hero \{
             background-color: var(--hero-bg);
             color: var(--hero-text);
             text-align: center;
@@ -69,11 +69,11 @@
             margin-bottom: 2em;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
-        h1 {
+        h1 \{
             margin: 0;
             font-size: 2.5em;
         }
-        main {
+        main \{
             flex: 1;
             background-color: var(--card-bg);
             padding: 2em;
@@ -81,7 +81,7 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
             transition: background-color 0.3s ease;
         }
-        .toc {
+        .toc \{
             width: 250px;
             position: sticky;
             top: 100px;
@@ -92,30 +92,30 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
             transition: background-color 0.3s ease;
         }
-        .toc h2 {
+        .toc h2 \{
             margin-top: 0;
         }
-        .toc ul {
+        .toc ul \{
             list-style-type: none;
             padding-left: 0;
         }
-        .toc ul ul {
+        .toc ul ul \{
             padding-left: 20px;
         }
-        .toc a {
+        .toc a \{
             color: var(--text-color);
             text-decoration: none;
         }
-        .toc a:hover {
+        .toc a:hover \{
             text-decoration: underline;
         }
-        footer {
+        footer \{
             text-align: center;
             margin-top: 2em;
             color: #7f8c8d;
             padding: 20px;
         }
-        .mode-toggle {
+        .mode-toggle \{
             position: fixed;
             top: 20px;
             right: 20px;
@@ -125,11 +125,11 @@
             font-size: 24px;
             z-index: 1001;
         }
-        @media (max-width: 1024px) {
-            .container {
+        @media (max-width: 1024px) \{
+            .container \{
                 flex-direction: column;
             }
-            .toc {
+            .toc \{
                 width: auto;
                 position: static;
                 margin-bottom: 2em;
@@ -149,7 +149,7 @@
     <header class="hero">
         <div class="container">
             <h1>
-                {POST_TITLE}
+                {title}
             </h1>
         </div>
     </header>
@@ -160,24 +160,24 @@
             <ul id="toc-list"></ul>
         </aside>
         <main>
-            {POST_CONTENT}
+            {content}
         </main>
     </div>
 
     <footer>
-        <p>&copy; 2024 My Driftwood Blog. All rights reserved.</p>
+        <p>&copy; 2024 {sitename}. All rights reserved.</p>
     </footer>
 
     <script>
         const modeToggle = document.getElementById('mode-toggle');
         const body = document.body;
 
-        function setDarkMode(isDark) {
-            if (isDark) {
+        function setDarkMode(isDark) \{
+            if (isDark) \{
                 body.classList.add('dark-mode');
                 modeToggle.textContent = '🌙';
                 localStorage.setItem('dark_mode', 'true');
-            } else {
+            } else \{
                 body.classList.remove('dark-mode');
                 modeToggle.textContent = '☀️';
                 localStorage.setItem('dark_mode', 'false');
@@ -188,30 +188,30 @@
         const isDarkMode = localStorage.getItem('dark_mode') === 'true';
         setDarkMode(isDarkMode);
 
-        modeToggle.addEventListener('click', () => {
+        modeToggle.addEventListener('click', () => \{
             setDarkMode(!body.classList.contains('dark-mode'));
         });
 
         // Table of Contents generation
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function() \{
             const tocList = document.getElementById('toc-list');
             const headers = document.querySelectorAll('main h1, main h2, main h3');
             const tocItems = [];
 
-            headers.forEach((header, index) => {
-                if (!header.id) {
-                    header.id = `header-${index}`;
+            headers.forEach((header, index) => \{
+                if (!header.id) \{
+                    header.id = `header-$\{index}`;
                 }
 
                 const listItem = document.createElement('li');
                 const link = document.createElement('a');
-                link.href = `#${header.id}`;
+                link.href = `#$\{header.id}`;
                 link.textContent = header.textContent;
                 listItem.appendChild(link);
 
-                if (header.tagName === 'H2') {
+                if (header.tagName === 'H2') \{
                     listItem.style.marginLeft = '20px';
-                } else if (header.tagName === 'H3') {
+                } else if (header.tagName === 'H3') \{
                     listItem.style.marginLeft = '40px';
                 }
 

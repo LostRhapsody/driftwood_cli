@@ -421,7 +421,7 @@ fn deploy_site(site: &SiteDetails) -> Result<()> {
         }
     }
 
-    let template_success = Post::template_html(html_file_names, site_path.clone());
+    let template_success = Post::template_html(html_file_names, site_path.clone(), site.name.clone().unwrap());
     match template_success {
         Ok(_) => {
             println!("Successfully templated blog links.");

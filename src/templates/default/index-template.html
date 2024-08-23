@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
-        {SITE_TITLE}
+        {sitename}
     </title>
     <style>
-        :root {
+        :root \{
             --bg-color: #f4f4f4;
             --text-color: #333;
             --card-bg: white;
@@ -16,7 +16,7 @@
             --nav-bg: rgba(255, 255, 255, 0.8);
             --nav-text: #333;
         }
-        .dark-mode {
+        .dark-mode \{
             --bg-color: #1a1a1a;
             --text-color: #f4f4f4;
             --card-bg: #2c2c2c;
@@ -25,7 +25,7 @@
             --nav-bg: rgba(44, 44, 44, 0.8);
             --nav-text: #f4f4f4;
         }
-        body {
+        body \{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: var(--text-color);
@@ -34,12 +34,12 @@
             background-color: var(--bg-color);
             transition: background-color 0.3s ease, color 0.3s ease;
         }
-        .container {
+        .container \{
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
         }
-        nav {
+        nav \{
             position: fixed;
             top: 20px;
             left: 50%;
@@ -51,13 +51,13 @@
             z-index: 1000;
             transition: background-color 0.3s ease;
         }
-        nav a {
+        nav a \{
             color: var(--nav-text);
             text-decoration: none;
             margin: 0 10px;
             font-weight: bold;
         }
-        .hero {
+        .hero \{
             background-color: var(--hero-bg);
             color: var(--hero-text);
             text-align: center;
@@ -65,16 +65,16 @@
             margin-bottom: 2em;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
-        h1 {
+        h1 \{
             margin: 0;
             font-size: 2.5em;
         }
-        main {
+        main \{
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        .card {
+        .card \{
             background-color: var(--card-bg);
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
@@ -84,41 +84,41 @@
             max-width: 600px;
             overflow: hidden;
         }
-        .card a {
+        .card a \{
             text-decoration: none;
             color: #333;
             font-weight: bold;
             font-size: 1.2em;
             margin-bottom: 1em;             
         }
-        .card:hover {
+        .card:hover \{
             transform: translateY(-5px);
             box-shadow: 0 7px 14px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.10);
         }
-        .card__image {
+        .card__image \{
             width: 100%;
             height: 200px;
             object-fit: cover;
         }
-        .card__content {
+        .card__content \{
             padding: 1.5em;
         }
-        .card__date {
+        .card__date \{
             color: #7f8c8d;
             font-size: 0.9em;
         }
-        .card__title {
+        .card__title \{
             color: var(--text-color);
             margin: 0.5em 0;
             font-size: 1.4em;
         }
-        footer {
+        footer \{
             text-align: center;
             margin-top: 2em;
             color: #7f8c8d;
             padding: 20px;
         }
-        .mode-toggle {
+        .mode-toggle \{
             position: fixed;
             top: 20px;
             right: 20px;
@@ -128,14 +128,14 @@
             font-size: 24px;
             z-index: 1001;
         }
-        @media (max-width: 600px) {
-            .container {
+        @media (max-width: 600px) \{
+            .container \{
                 padding: 10px;
             }
-            .hero {
+            .hero \{
                 padding: 80px 0;
             }
-            nav {
+            nav \{
                 padding: 8px 15px;
             }
         }
@@ -153,29 +153,29 @@
     <header class="hero">
         <div class="container">
             <h1>
-                {SITE_TITLE}
+                {sitename}
             </h1>
         </div>
     </header>
     
     <main class="container">
-        <!-- blog links -->
+        {blog_cards}
     </main>
 
     <footer>
-        <p>&copy; 2024 My Driftwood Blog. All rights reserved.</p>
+        <p>&copy; 2024 {sitename}. All rights reserved.</p>
     </footer>
 
     <script>
         const modeToggle = document.getElementById('mode-toggle');
         const body = document.body;
 
-        function setDarkMode(isDark) {
-            if (isDark) {
+        function setDarkMode(isDark) \{
+            if (isDark) \{
                 body.classList.add('dark-mode');
                 modeToggle.textContent = '🌙';
                 localStorage.setItem('dark_mode', 'true');
-            } else {
+            } else \{
                 body.classList.remove('dark-mode');
                 modeToggle.textContent = '☀️';
                 localStorage.setItem('dark_mode', 'false');
@@ -186,7 +186,7 @@
         const isDarkMode = localStorage.getItem('dark_mode') === 'true';
         setDarkMode(isDarkMode);
 
-        modeToggle.addEventListener('click', () => {
+        modeToggle.addEventListener('click', () => \{
             setDarkMode(!body.classList.contains('dark-mode'));
         });
     </script>
