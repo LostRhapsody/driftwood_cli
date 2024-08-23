@@ -3,97 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>
-        {title}
-    </title>
+    <title>{title}</title>
     <style>
         :root \{
-            --bg-color: #f4f4f4;
-            --text-color: #333;
-            --card-bg: white;
-            --hero-bg: #3498db;
-            --hero-text: white;
-            --nav-bg: rgba(255, 255, 255, 0.8);
-            --nav-text: #333;
-            --toc-bg: white;
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --card-bg: #ffffff;
+            --hero-bg: #4a90e2;
+            --hero-text: #ffffff;
+            --nav-bg: rgba(255, 255, 255, 0.95);
+            --nav-text: #212529;
+            --toc-bg: #ffffff;
+            --accent-color: #4a90e2;
         }
         .dark-mode \{
-            --bg-color: #1a1a1a;
-            --text-color: #f4f4f4;
-            --card-bg: #2c2c2c;
-            --hero-bg: #2980b9;
-            --hero-text: #f4f4f4;
-            --nav-bg: rgba(44, 44, 44, 0.8);
-            --nav-text: #f4f4f4;
-            --toc-bg: #2c2c2c;
+            --bg-color: #212529;
+            --text-color: #f8f9fa;
+            --card-bg: #343a40;
+            --hero-bg: #3a75b5;
+            --hero-text: #f8f9fa;
+            --nav-bg: rgba(52, 58, 64, 0.95);
+            --nav-text: #f8f9fa;
+            --toc-bg: #343a40;
         }
         body \{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
             line-height: 1.6;
             color: var(--text-color);
             margin: 0;
             padding: 0;
             background-color: var(--bg-color);
-            transition: background-color 0.3s ease, color 0.3s ease;
+            transition: all 0.3s ease;
         }
         .container \{
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            display: flex;
+            display: grid;
+            grid-template-columns: 250px 1fr;
             gap: 40px;
         }
         nav \{
             position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 0;
+            left: 0;
+            right: 0;
             background-color: var(--nav-bg);
-            padding: 10px 20px;
-            border-radius: 25px;
+            padding: 15px 0;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 1000;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+        }
+        nav .nav-content \{
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         nav a \{
             color: var(--nav-text);
             text-decoration: none;
-            margin: 0 10px;
-            font-weight: bold;
+            margin: 0 15px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        nav a:hover \{
+            color: var(--accent-color);
         }
         .hero \{
             background-color: var(--hero-bg);
             color: var(--hero-text);
             text-align: center;
-            padding: 100px 0;
+            padding: 80px 0;
             margin-bottom: 2em;
-            transition: background-color 0.3s ease, color 0.3s ease;
+            transition: all 0.3s ease;
         }
         h1 \{
             margin: 0;
             font-size: 2.5em;
+            font-weight: 700;
         }
         main \{
-            flex: 1;
             background-color: var(--card-bg);
             padding: 2em;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
-            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
         }
         .toc \{
-            width: 250px;
             position: sticky;
             top: 100px;
-            align-self: flex-start;
+            align-self: start;
             background-color: var(--toc-bg);
             padding: 1em;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
-            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
         }
         .toc h2 \{
             margin-top: 0;
+            font-size: 1.2em;
+            color: var(--accent-color);
         }
         .toc ul \{
             list-style-type: none;
@@ -102,35 +113,42 @@
         .toc ul ul \{
             padding-left: 20px;
         }
+        .toc ul li \{
+            margin-bottom: 10px;
+        \}
+        .toc ul ul li \{
+            margin-bottom: 5px;
+        }
         .toc a \{
             color: var(--text-color);
             text-decoration: none;
+            transition: color 0.3s ease;
         }
         .toc a:hover \{
-            text-decoration: underline;
+            color: var(--accent-color);
         }
         footer \{
             text-align: center;
             margin-top: 2em;
-            color: #7f8c8d;
+            color: var(--text-color);
+            opacity: 0.7;
             padding: 20px;
         }
         .mode-toggle \{
-            position: fixed;
-            top: 20px;
-            right: 20px;
             background: none;
             border: none;
             cursor: pointer;
             font-size: 24px;
-            z-index: 1001;
+            transition: transform 0.3s ease;
+        }
+        .mode-toggle:hover \{
+            transform: scale(1.1);
         }
         @media (max-width: 1024px) \{
             .container \{
-                flex-direction: column;
+                grid-template-columns: 1fr;
             }
             .toc \{
-                width: auto;
                 position: static;
                 margin-bottom: 2em;
             }
@@ -138,19 +156,16 @@
     </style>
 </head>
 <body>
-    <button class="mode-toggle" id="mode-toggle" aria-label="Toggle dark mode">☀️</button>
-    
     <nav>
-        <a href="/">Home</a>
-        <!-- <a href="#about">About</a>
-        <a href="#contact">Contact</a> -->
+        <div class="nav-content">
+            <a href="/">Home</a>
+            <button class="mode-toggle" id="mode-toggle" aria-label="Toggle dark mode">☀️</button>
+        </div>
     </nav>
 
     <header class="hero">
         <div class="container">
-            <h1>
-                {title}
-            </h1>
+            <h1>{title}</h1>
         </div>
     </header>
     
@@ -184,7 +199,6 @@
             }
         }
 
-        // Check user's preference from localStorage
         const isDarkMode = localStorage.getItem('dark_mode') === 'true';
         setDarkMode(isDarkMode);
 
@@ -192,12 +206,10 @@
             setDarkMode(!body.classList.contains('dark-mode'));
         });
 
-        // Table of Contents generation
         document.addEventListener('DOMContentLoaded', function() \{
             const tocList = document.getElementById('toc-list');
             const headers = document.querySelectorAll('main h1, main h2, main h3');
-            const tocItems = [];
-
+            
             headers.forEach((header, index) => \{
                 if (!header.id) \{
                     header.id = `header-$\{index}`;
@@ -215,10 +227,8 @@
                     listItem.style.marginLeft = '40px';
                 }
 
-                tocItems.push(listItem);
+                tocList.appendChild(listItem);
             });
-
-            tocItems.forEach(item => tocList.appendChild(item));
         });
     </script>
 </body>
