@@ -61,14 +61,15 @@
             justify-content: space-between;
             align-items: center;
         }
-        nav a \{
+        a \{
             color: var(--nav-text);
             text-decoration: none;
             margin: 0 15px;
             font-weight: 500;
             transition: color 0.3s ease;
+            display: inline-block;
         }
-        nav a:hover \{
+        a:hover \{
             color: var(--accent-color);
         }
         .hero \{
@@ -115,17 +116,9 @@
         }
         .toc ul li \{
             margin-bottom: 10px;
-        \}
+        }
         .toc ul ul li \{
             margin-bottom: 5px;
-        }
-        .toc a \{
-            color: var(--text-color);
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-        .toc a:hover \{
-            color: var(--accent-color);
         }
         footer \{
             text-align: center;
@@ -144,6 +137,134 @@
         .mode-toggle:hover \{
             transform: scale(1.1);
         }
+        table \{
+            width: 100%;
+            max-width: 800px;
+            margin: 2em auto;
+            border-collapse: separate;
+            border-spacing: 0;
+            background-color: var(--card-bg);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td \{
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-color);
+        }
+
+        th \{
+            background-color: var(--accent-color);
+            color: var(--hero-text);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 0.05em;
+        }
+
+        tr:last-child td \{
+            border-bottom: none;
+        }
+
+        tr:nth-child(even) \{
+            background-color: rgba(0,0,0,0.03);
+        }
+
+        .dark-mode tr:nth-child(even) \{
+            background-color: rgba(255,255,255,0.03);
+        }
+
+        pre, code \{
+            font-family: 'Fira Code', 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            border-radius: 4px;
+        }
+
+        pre \{
+            background-color: var(--bg-color);
+            padding: 1em;
+            overflow-x: auto;
+            border-left: 4px solid var(--accent-color);
+            margin: 1.5em 0;
+        }
+
+        code \{
+            padding: 0.2em 0.4em;
+        }
+
+        .dark-mode pre \{
+            background-color: #2d2d2d;
+        }
+
+        .dark-mode code \{
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Blockquote Styles */
+        blockquote \{
+            background-color: var(--bg-color);
+            border-left: 4px solid var(--accent-color);
+            margin: 1.5em 0;
+            padding: 1em;
+            font-style: italic;
+            position: relative;
+        }
+
+        blockquote::before \{
+            content: '"';
+            font-size: 4em;
+            font-family: Georgia, serif;
+            color: var(--accent-color);
+            opacity: 0.2;
+            position: absolute;
+            top: -10px;
+            left: 10px;
+        }
+
+        blockquote p \{
+            margin: 0;
+            padding-left: 2em;
+        }
+
+        blockquote cite \{
+            display: block;
+            text-align: right;
+            margin-top: 1em;
+            font-style: normal;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        /* Image Styles */
+        img \{
+            max-width: 65%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: block;
+            margin: 2em auto;
+        }
+
+        .image-container \{
+            max-width: 80%;
+            margin: 2em auto;
+        }
+
+        .image-container img \{
+            width: 100%;
+            margin: 0;
+        }
+
+        .image-caption \{
+            text-align: center;
+            margin-top: 0.5em;
+            font-style: italic;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+
         @media (max-width: 1024px) \{
             .container \{
                 grid-template-columns: 1fr;
@@ -151,6 +272,59 @@
             .toc \{
                 position: static;
                 margin-bottom: 2em;
+            }
+        }
+
+        @media (max-width: 768px) \{
+            .image-container \{
+                max-width: 100%;
+            }
+        }
+
+        /* Responsive table */
+        @media screen and (max-width: 600px) \{
+            table \{
+                border: 0;
+                box-shadow: none;
+            }
+            
+            table caption \{
+                font-size: 1.3em;
+            }
+            
+            table thead \{
+                border: none;
+                clip: rect(0 0 0 0);
+                height: 1px;
+                margin: -1px;
+                overflow: hidden;
+                padding: 0;
+                position: absolute;
+                width: 1px;
+            }
+            
+            table tr \{
+                border-bottom: 3px solid var(--bg-color);
+                display: block;
+                margin-bottom: .625em;
+            }
+            
+            table td \{
+                border-bottom: 1px solid var(--bg-color);
+                display: block;
+                font-size: .8em;
+                text-align: right;
+            }
+            
+            table td::before \{
+                content: attr(data-label);
+                float: left;
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+            
+            table td:last-child \{
+                border-bottom: 0;
             }
         }
     </style>
@@ -175,6 +349,7 @@
             <ul id="toc-list"></ul>
         </aside>
         <main>
+            <time datetime="{date}" class="card__date">Published: {date}</time>
             {content}
         </main>
     </div>

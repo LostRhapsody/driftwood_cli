@@ -1,5 +1,3 @@
-/// TODO - Update blog card title's for dark mode, can't read them
-/// TODO - space out the links in the table of contents
 /// TODO - Arrange the blog cards in a grid
 /// TODO - Add a customizable favicon for the site
 /// TODO - Add an 'about' page
@@ -91,14 +89,8 @@ impl Post {
         println!(">> Templates created");
 
         let site_path = Path::new(&site_path);
-
-        /***********************
-         * Build the Home page  *
-         ***********************/
-
         let mut rendered_index = String::new();
         let mut rendered_blog_cards = String::new();
-        let mut date = String::new();
 
         println!(">> Iterating through posts");
 
@@ -111,6 +103,7 @@ impl Post {
             let mut excerpt = String::new();
             let mut image = String::new();
             let mut new_post_file = String::new();
+            let mut date = String::new();
 
             // extract the date, excerpt, and image from the post_file
             for line in post_file.lines() {
@@ -131,6 +124,8 @@ impl Post {
             }
 
             let _ = fs::write(post_file_path, &new_post_file);
+            // read in the updated file
+            let post_file = fs::read_to_string(post_file_path).unwrap();
             println!(">> Post file written to disk");
 
             let post_file_name = post_file_path
@@ -149,7 +144,7 @@ impl Post {
             println!(">> Creating blog card context");
             let blog_card_context = BlogCardContext {
                 filename: format!("/posts/{}", post_file_name),
-                title: post_title,
+                title: post_title.clone(),
                 date: date.clone(),
                 excerpt: excerpt,
                 image: image,
@@ -162,6 +157,20 @@ impl Post {
                     .expect("Failed templating the blog link context"),
             );
             println!(">> Blog card context templated");
+
+            let post_context = PostContext {
+                title: post_title,
+                content: post_file,
+                date: date.clone(),
+                sitename: site_name.clone(),
+            };
+            println!(">> Templating post: {}", post_file_path.to_str().unwrap());
+            let rendered_post = tt_post_page
+                .render("post", &post_context)
+                .expect("Failed templating the post context");
+            println!(">> Templated post: {}", post_file_path.to_str().unwrap());
+            fs::write(post_file_path, &rendered_post).expect("Failed to write post to disk");
+
         });
 
         println!(">> Templating index");
@@ -179,46 +188,6 @@ impl Post {
         println!(">> Writing index to disk");
         let index_filename = site_path.join("index.html");
         fs::write(index_filename, rendered_index)?;
-
-        /***********************
-         *Build the Posts pages *
-         ***********************/
-
-        println!(">> Iterating through posts");
-        let posts_path = site_path.join("posts");
-        let posts_files = fs::read_dir(posts_path)?;
-        for post in posts_files {
-            let post_path = post.unwrap().path();
-
-            println!(">> Post: {}", post_path.to_str().unwrap());
-
-            let post_file = fs::read_to_string(post_path.clone())?;
-
-            let post_file_path = post_path
-                .file_name()
-                .unwrap()
-                .to_str()
-                .expect("Failed to convert post file path to string");
-
-            // create a post title out of that
-            let post_title = post_file_path
-                .replace(".html", "")
-                .replace(".md", "")
-                .replace("-", " ");
-
-            let post_context = PostContext {
-                title: post_title,
-                content: post_file,
-                date: date.clone(),
-                sitename: site_name.clone(),
-            };
-
-            let rendered_post = tt_post_page
-                .render("post", &post_context)
-                .expect("Failed templating the post context");
-
-            fs::write(post_path, &rendered_post)?;
-        }
 
         Ok(true)
     }

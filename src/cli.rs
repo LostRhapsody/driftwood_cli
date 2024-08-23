@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use chrono;
 use driftwood::Post;
 use regex::Regex;
+/// TODO - When creating a new post, add the lorum_ipsum.md file to the post as a default value
 /// TODO - make a standard function for writing out menus to reduce repeat code
 /// TODO - make a standard function for reading input to reduce repeat code
 /// TODO - Rebuild the navigation so users can go back and forth between menus easier
@@ -100,12 +101,11 @@ fn create_post(site: &SiteDetails) -> Result<()> {
         .context("Failed to open file.")?;
 
     let post_content = format!(
-        "date:{}\nexcerpt:{}\nimage:{}\n# {}\n## Date: {}", 
+        "date:{}\nexcerpt:{}\nimage:{}\n# {}", 
         post.date,
         "my_excerpt",
         "https://images.unsplash.com/photo-1615147342761-9238e15d8b96?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1001&q=80",
-        post.title, 
-        post.date,
+        post.title,
     );
 
     file.write_all(post_content.as_bytes())
