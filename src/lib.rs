@@ -2,6 +2,7 @@
 /// TODO - Add a customizable favicon for the site
 /// TODO - Add an 'about' page
 /// TODO - Center the title on blog post pages
+use git2::{Repository, Signature};
 use serde::Serialize;
 use std::{env, error::Error, fs, path::Path};
 use tinytemplate::{format_unescaped, TinyTemplate};
@@ -11,6 +12,8 @@ pub struct Post {
     pub date: String,
     pub content: String,
     pub filename: String,
+    pub tags: Vec<String>,
+    pub views: u32,
 }
 
 #[derive(Serialize)]
@@ -21,6 +24,8 @@ struct BlogCardContext {
     excerpt: String,
     image: String,
     sitename: String,
+    tags: String,
+    views: String,
 }
 
 #[derive(Serialize)]
@@ -43,12 +48,21 @@ static POST_PAGE_TEMPLATE: &'static str = include_str!("templates/default/post-t
 static INDEX_TEMPLATE: &'static str = include_str!("templates/default/index-template.html");
 
 impl Post {
-    pub fn new(title: String, date: String, content: String, filename: String) -> Post {
+    pub fn new(
+        title: String,
+        date: String,
+        content: String,
+        filename: String,
+        tags: Vec<String>,
+        views: u32,
+    ) -> Post {
         Post {
-            title: title,
-            date: date,
-            content: content,
-            filename: filename,
+            title,
+            date,
+            content,
+            filename,
+            tags,
+            views,
         }
     }
 
@@ -94,27 +108,59 @@ impl Post {
 
         println!(">> Iterating through posts");
 
-        // iterate through all the Posts
-        posts.iter().for_each(|post| {
-            println!(">> Post: {}", post);
+        // Create a vector to store post data
+        let mut post_data: Vec<(String, String, String, Vec<String>, u32)> = Vec::new();
 
+        // First pass: extract date and other information
+        for post in &posts {
+            let post_file_path = Path::new(post);
+            let post_file = fs::read_to_string(post_file_path)?;
+            let mut date = String::new();
+            let mut tags = Vec::new();
+            let mut views = 0;
+
+            for line in post_file.lines() {
+                println!(">> Line >> : {}", line.trim());
+                if line.trim().starts_with("<p>date:") {
+                    date = line.replace("<p>date:", "").trim().to_string();
+                } else if line.trim().starts_with("tags:") {
+                    tags = line.replace("tags:", "").trim().split(",").map(|s| s.to_string()).collect::<Vec<String>>();
+                    println!("Tags: {:?}", tags);
+                } else if line.trim().starts_with("views:") {
+                    views = line.replace("views:", "").trim().replace("</p>", "").parse::<u32>().unwrap_or(0);
+                    // MOVE ME IF YOU ADD MORE ATTRIBUTES
+                    break;
+                }
+            }
+
+            post_data.push((post.clone(), date, post_file, tags, views));
+        }
+
+        // Sort posts by date in descending order (newest first)
+        post_data.sort_by(|a, b| b.1.cmp(&a.1));
+
+        // iterate through all the Posts
+        for (post, date, post_file, tags, views) in post_data {
+            println!("Tags: {:?}", tags);
+            println!(">> Post: {}", post);
             let post_file_path = Path::new(&post);
-            let post_file = fs::read_to_string(post_file_path).unwrap();
             let mut excerpt = String::new();
             let mut image = String::new();
             let mut new_post_file = String::new();
-            let mut date = String::new();
 
             // extract the date, excerpt, and image from the post_file
             for line in post_file.lines() {
                 if line.trim().starts_with("<p>date:") {
-                    date.push_str(line.replace("<p>date:", "").trim());
                     continue;
                 } else if line.trim().starts_with("excerpt:") {
                     excerpt.push_str(line.replace("excerpt:", "").trim());
                     continue;
                 } else if line.trim().starts_with("image:") {
                     image.push_str(line.replace("image:", "").trim());
+                    continue;
+                } else if line.trim().starts_with("tags:") {
+                    continue;
+                } else if line.trim().starts_with("views:") {
                     continue;
                 } else {
                     // put all the lines, except the above three, into new_post_file
@@ -143,13 +189,16 @@ impl Post {
             // create the context/data for the template
             println!(">> Creating blog card context");
             let blog_card_context = BlogCardContext {
-                filename: format!("/posts/{}", post_file_name),
+                filename: format!("posts/{}", post_file_name),
                 title: post_title.clone(),
                 date: date.clone(),
                 excerpt: excerpt,
                 image: image,
                 sitename: site_name.clone(),
+                tags: tags.join(", "),
+                views: views.to_string(),
             };
+            println!("Blog card context: {}", blog_card_context.tags);
 
             rendered_blog_cards.push_str(
                 &tt_blog_card
@@ -170,8 +219,7 @@ impl Post {
                 .expect("Failed templating the post context");
             println!(">> Templated post: {}", post_file_path.to_str().unwrap());
             fs::write(post_file_path, &rendered_post).expect("Failed to write post to disk");
-
-        });
+        }
 
         println!(">> Templating index");
         let index_context = IndexContext {
@@ -191,6 +239,65 @@ impl Post {
 
         Ok(true)
     }
+
+    pub fn init_git_repo(site_path: &str) -> Result<Repository, git2::Error> {
+        let path = Path::new(site_path);
+        Repository::init(path)
+    }
+
+    pub fn commit_changes(repo: &Repository, message: &str) -> Result<(), git2::Error> {
+        let signature = Signature::now("Driftwood", "driftwood@example.com")?;
+        let mut index = repo.index()?;
+        let oid = index.write_tree()?;
+        let tree = repo.find_tree(oid)?;
+
+        let parents = match repo.head() {
+            Ok(head) => vec![head.peel_to_commit()?],
+            Err(_) => vec![],
+        };
+
+        let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
+
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            message,
+            &tree,
+            parent_refs.as_slice(),
+        )?;
+
+        Ok(())
+    }
+
+    // pub fn view_commit_history(repo_path: &str, limit: usize) -> Result<(), git2::Error> {
+    //     let repo = Repository::open(repo_path)?;
+    //     let mut revwalk = repo.revwalk()?;
+    //     revwalk.push_head()?;
+    //     revwalk.set_sorting(git2::Sort::TIME)?;
+
+    //     println!("Commit History (Last {} commits):", limit);
+    //     println!("--------------------------------");
+
+    //     for (i, oid) in revwalk.take(limit).enumerate() {
+    //         let oid = oid?;
+    //         let commit = repo.find_commit(oid)?;
+
+    //         let time = commit.time();
+    //         let dt: DateTime<Utc> = Utc.timestamp_opt(time.seconds(), 0).unwrap();
+
+    //         println!("Commit:     {}", oid);
+    //         println!("Author:     {}", commit.author());
+    //         println!("Date:       {}", dt.format("%Y-%m-%d %H:%M:%S"));
+    //         println!(
+    //             "Message:    {}",
+    //             commit.message().unwrap_or("No commit message")
+    //         );
+    //         println!("--------------------------------");
+    //     }
+
+    //     Ok(())
+    // }
 }
 
 pub struct OAuth2 {}

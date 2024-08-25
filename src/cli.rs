@@ -2,6 +2,7 @@ use crate::netlify::{Netlify, SiteDetails, Ssl_Cert};
 use anyhow::{Context, Result};
 use chrono;
 use driftwood::Post;
+use git2::Repository;
 use regex::Regex;
 /// TODO - When creating a new post, add the lorum_ipsum.md file to the post as a default value
 /// TODO - make a standard function for writing out menus to reduce repeat code
@@ -85,10 +86,26 @@ fn create_post(site: &SiteDetails) -> Result<()> {
     let filename = format!("{}/{}.md", post_path.display(), post_name);
 
     let date = chrono::Local::now();
-    let date = date.date_naive().to_string();
+    let date = date.format("%Y/%m/%d %I:%M %p").to_string();
+    let post_title = post_name.replace("-", " ");
+
+    println!("Enter tags for the post, separated by commas.");
+    print!("> ");
+    let mut input = String::new();
+    std::io::stdout()
+        .flush()
+        .context("Failed to flush stdout")?;
+    std::io::stdin()
+        .read_line(&mut input)
+        .context("Failed to read line")?;
+
+    println!("Input: {}", input);
+
+    let tags = input.trim().split(",").map(|s| s.to_string()).collect::<Vec<String>>();
+    println!("Tags: {:?}", tags);
 
     // create a new file in the 'posts' directory
-    let post = Post::new(post_name, date, "This is a test post".to_string(), filename);
+    let post = Post::new(post_title, date, String::new(), filename, tags.clone(), 0);
 
     // write the post to disk
     fs::write(&post.filename, "").context("Failed to write to file.")?;
@@ -101,15 +118,34 @@ fn create_post(site: &SiteDetails) -> Result<()> {
         .context("Failed to open file.")?;
 
     let post_content = format!(
-        "date:{}\nexcerpt:{}\nimage:{}\n# {}", 
+        "date:{}\nexcerpt:{}\nimage:{}\ntags:{}\nviews:{}\n# {}", 
         post.date,
-        "my_excerpt",
+        "Write cool excerpt here",
         "https://images.unsplash.com/photo-1615147342761-9238e15d8b96?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1001&q=80",
+        tags.join(","),
+        post.views,
         post.title,
     );
 
     file.write_all(post_content.as_bytes())
         .context("Failed to write to file.")?;
+
+        
+    // let site_name = site.name.clone().unwrap();
+    let site_path = build_site_path(site);
+    println!("Site path: {}", site_path);
+    let repo_path = Path::new(&site_path);
+
+    let repo = if repo_path.exists() && repo_path.join(".git").exists() {
+        println!("Opening existing repository");
+        Repository::open(repo_path).context("Failed to open existing repository")?
+    } else {
+        println!("Initializing new repository");
+        Post::init_git_repo(&site_path).context("Failed to initialize new repository")?
+    };
+    Post::commit_changes(&repo, &format!("Add new post: {}", post_name))?;
+
+    
 
     println!(
         "Post `{}` was created successfully. Edit your new file in: {}",
@@ -154,6 +190,9 @@ fn create_website() -> Result<()> {
     let netlify: Netlify = Netlify::new();
     let site_details = create_site(netlify, website_name).expect("Failed to create site");
     make_site_dir(&site_details);
+
+    let repo = Post::init_git_repo(&site_details.name.clone().unwrap());
+    Post::commit_changes(&repo.unwrap(), "Initial commit")?;
 
     println!("Press enter to return to the main menu.");
     print!("> ");
@@ -289,47 +328,6 @@ fn make_site_dir(site: &SiteDetails) {
             site.name.clone().unwrap()
         ));
     }
-
-    if path.exists() {
-        // check if the site directory already has an "index-template.html" and "post-template.html"
-        let index_template_path = path.join("index-template.html");
-        let post_template_path = path.join("post-template.html");
-
-        // if the site directory does not have an "index-template.html"
-        // and "post-template.html", copy the defaults
-        if !index_template_path.exists() && !post_template_path.exists() {
-            // take the "/src/templates/default/index-template.html"
-            // copy it to the site directory
-            let template_path = Path::new("src/templates/default/index-template.html");
-            println!("Template path: {}", template_path.display());
-            println!("template_path exists: {}", template_path.exists());
-            let template_path = template_path
-                .canonicalize()
-                .expect("Failed to canonicalize template path");
-            let template_path = template_path
-                .to_str()
-                .expect("Failed to convert template path to string");
-            let template_path = Path::new(template_path);
-            let destination_path = path.join("index-template.html");
-            println!("final template_path: {}", template_path.display());
-            fs::copy(template_path, destination_path).expect("Failed to copy template to site directory");
-
-            // do the same thing for the "posts-template.html"
-            let post_template_path = Path::new("src/templates/default/post-template.html");
-            println!("Post template path: {}", post_template_path.display());
-            println!("post_template_path exists: {}", post_template_path.exists());
-            let post_template_path = post_template_path
-                .canonicalize()
-                .expect("Failed to canonicalize post template path");
-            let post_template_path = post_template_path
-                .to_str()
-                .expect("Failed to convert post template path to string");
-            let post_template_path = Path::new(post_template_path);
-            let destination_path = path.join("post-template.html");
-            fs::copy(post_template_path, destination_path)
-                .expect("Failed to copy post template to site directory");
-        }
-    }
 }
 
 fn update_site_name(site: &SiteDetails) -> Result<()> {
@@ -421,7 +419,9 @@ fn deploy_site(site: &SiteDetails) -> Result<()> {
         }
     }
 
-    let template_success = Post::template_html(html_file_names, site_path.clone(), site.name.clone().unwrap());
+    // remove any dashes or underscores from the site name, replace with spaces
+    let clean_site_name = site.name.clone().unwrap().replace("-", " ").replace("_", " ");
+    let template_success = Post::template_html(html_file_names, site_path.clone(), clean_site_name);
     match template_success {
         Ok(_) => {
             println!("Successfully templated blog links.");
