@@ -1,265 +1,382 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>{sitename}</title>
-        <style>
-            :root \{
-                --bg-color: #f8f9fa;
-                --text-color: #212529;
-                --card-bg: #ffffff;
-                --hero-bg: #4a90e2;
-                --hero-text: #ffffff;
-                --nav-bg: rgba(255, 255, 255, 0.95);
-                --nav-text: #212529;
-                --toc-bg: #ffffff;
-                --accent-color: #4a90e2;
-            }
-            .dark-mode \{
-                --bg-color: #212529;
-                --text-color: #f8f9fa;
-                --card-bg: #343a40;
-                --hero-bg: #3a75b5;
-                --hero-text: #f8f9fa;
-                --nav-bg: rgba(52, 58, 64, 0.95);
-                --nav-text: #f8f9fa;
-                --toc-bg: #343a40;
-            }
-            body \{
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-                line-height: 1.6;
-                color: var(--text-color);
-                margin: 0;
-                padding: 0;
-                background-color: var(--bg-color);
-                transition: all 0.3s ease;
-            }
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{sitename}</title>
+    <style>
+        :root \{
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --card-bg: #ffffff;
+            --hero-bg: #4a90e2;
+            --hero-text: #ffffff;
+            --nav-bg: rgba(255, 255, 255, 0.95);
+            --nav-text: #212529;
+            --toc-bg: #ffffff;
+            --accent-color: #4a90e2;
+            --search-outline: #b7b7b775;
+            --sort-icon-color: #b7b7b7;
+        }
+
+        .dark-mode \{
+            --bg-color: #212529;
+            --text-color: #f8f9fa;
+            --card-bg: #343a40;
+            --hero-bg: #3a75b5;
+            --hero-text: #f8f9fa;
+            --nav-bg: rgba(52, 58, 64, 0.95);
+            --nav-text: #f8f9fa;
+            --toc-bg: #343a40;
+        }
+
+        body \{
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            transition: all 0.3s ease;
+        }
+
+        .container \{
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        nav \{
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--nav-bg);
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        nav .nav-content \{
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav a \{
+            color: var(--nav-text);
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            display: inline-block;
+        }
+
+        a:hover \{
+            color: var(--accent-color);
+        }
+
+        .hero \{
+            background-color: var(--hero-bg);
+            color: var(--hero-text);
+            text-align: center;
+            padding: 80px 0;
+            margin-bottom: 2em;
+            transition: all 0.3s ease;
+        }
+
+        h1 \{
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        main \{
+            padding: 2em;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .card \{
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1),
+                0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            margin-bottom: 2em;
+            width: 100%;
+            max-width: 600px;
+            overflow: hidden;
+        }
+
+        .card a \{
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 1em;
+        }
+
+        .card:hover \{
+            transform: translateY(-5px);
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.15),
+                0 3px 6px rgba(0, 0, 0, 0.10);
+        }
+
+        .card__image \{
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .card__content \{
+            padding: 1.5em;
+        }
+
+        .card__date \{
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .card__title \{
+            color: var(--text-color);
+            margin: 0.5em 0;
+            font-size: 1.4em;
+        }
+
+        footer \{
+            text-align: center;
+            margin-top: 2em;
+            color: var(--text-color);
+            opacity: 0.7;
+            padding: 20px;
+        }
+
+        .mode-toggle \{
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            transition: transform 0.3s ease;
+        }
+
+        .mode-toggle:hover \{
+            transform: scale(1.1);
+        }
+
+        .controls-container \{
+            max-width: 1200px;
+            margin: 0 auto;
+            margin-bottom: 20px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sorting-controls \{
+            display: flex;
+            align-items: center;
+        }
+
+        #sort-select \{
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--search-outline);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        #reverse-sort \{
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+            color: var(--sort-icon-color);
+        }
+
+        #reverse-sort:hover \{
+            opacity: 1;
+        }
+
+        .search-container \{
+            display: flex;
+            align-items: center;
+        }
+
+        #search-input \{
+            padding: 8px;
+            border-radius: 4px 0 0 4px;
+            border: 1px solid var(--search-outline);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        #search-input:focus \{
+            outline: none;
+        }
+
+        @media (max-width: 1024px) \{
             .container \{
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 20px;
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
+                grid-template-columns: 1fr;
             }
-            nav \{
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                background-color: var(--nav-bg);
-                padding: 15px 0;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                z-index: 1000;
-                transition: all 0.3s ease;
+        }
+
+        @media (max-width: 600px) \{
+            .container \{
+                padding: 10px;
             }
-            nav .nav-content \{
-                max-width: 1200px;
-                margin: 0 auto;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            nav a \{
-                color: var(--nav-text);
-                text-decoration: none;
-                margin: 0 15px;
-                font-weight: 500;
-                transition: color 0.3s ease;
-                display: inline-block;
-            }
-            a:hover \{
-                color: var(--accent-color);
-            }
+
             .hero \{
-                background-color: var(--hero-bg);
-                color: var(--hero-text);
-                text-align: center;
                 padding: 80px 0;
-                margin-bottom: 2em;
-                transition: all 0.3s ease;
-            }
-            h1 \{
-                margin: 0;
-                font-size: 2.5em;
-                font-weight: 700;
-            }
-            main \{
-                padding: 2em;
-                border-radius: 8px;
-                transition: all 0.3s ease;
-            }
-            .card \{
-                background-color: var(--card-bg);
-                border-radius: 8px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
-                transition: all 0.3s ease;
-                margin-bottom: 2em;
-                width: 100%;
-                max-width: 600px;
-                overflow: hidden;
-            }
-            .card a \{
-                text-decoration: none;
-                color: var(--text-color);
-                font-weight: bold;
-                font-size: 1.2em;
-                margin-bottom: 1em;
-            }
-            .card:hover \{
-                transform: translateY(-5px);
-                box-shadow: 0 7px 14px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.10);
-            }
-            .card__image \{
-                width: 100%;
-                height: 200px;
-                object-fit: cover;
-            }
-            .card__content \{
-                padding: 1.5em;
-            }
-            .card__date \{
-                color: #7f8c8d;
-                font-size: 0.9em;
-            }
-            .card__title \{
-                color: var(--text-color);
-                margin: 0.5em 0;
-                font-size: 1.4em;
-            }
-            footer \{
-                text-align: center;
-                margin-top: 2em;
-                color: var(--text-color);
-                opacity: 0.7;
-                padding: 20px;
-            }
-            .mode-toggle \{
-                background: none;
-                border: none;
-                cursor: pointer;
-                font-size: 24px;
-                transition: transform 0.3s ease;
-            }
-            .mode-toggle:hover \{
-                transform: scale(1.1);
             }
 
-            @media (max-width: 1024px) \{
-                .container \{
-                    grid-template-columns: 1fr;
-                }
+            nav \{
+                padding: 8px 15px;
             }
+        }
+    </style>
+</head>
 
-            @media (max-width: 600px) \{
-                .container \{
-                    padding: 10px;
-                }
-                .hero \{
-                    padding: 80px 0;
-                }
-                nav \{
-                    padding: 8px 15px;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <nav>
-            <div class="nav-content">
-                <a href="#">Home</a>
-                <button
-                    class="mode-toggle"
-                    id="mode-toggle"
-                    aria-label="Toggle dark mode"
-                >
-                    ☀️
-                </button>
+<body>
+    <nav>
+        <div class="nav-content">
+            <a href="#">Home</a>
+            <button class="mode-toggle" id="mode-toggle" aria-label="Toggle dark mode">
+                ☀️
+            </button>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <h1>{sitename}</h1>
+    </header>
+
+    <main>
+        <div class="controls-container">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search posts...">
             </div>
-        </nav>
-
-        <header class="hero">
-            <h1>{sitename}</h1>
-        </header>
-
-        <main>
             <div class="sorting-controls">
                 <select id="sort-select">
                     <option value="date">Date</option>
-                    <option value="views">Most Popular</option>
-                    <option value="tags">Tags</option>
+                    <option value="title">Title</option>
+
                 </select>
-                <button id="reverse-sort">Reverse Sort</button>
-            </div>
+                <button id="reverse-sort" aria-label="Reverse sort order">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sort-up" viewBox="0 0 16 16">
+                        <path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.5.5 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1z"/>
+                    </svg>
+                </button>
+            </div>            
+        </div>
 
-            <div id="blog-cards-container" class="container" role="main">
-                {blog_cards}
-            </div>
-        </main>
+        <div id="blog-cards-container" class="container" role="main">
+            {blog_cards}
+        </div>
+    </main>
 
-        <footer>
-            <p>&copy; 2024 {sitename}. All rights reserved.</p>
-        </footer>
+    <footer>
+        <p>&copy; 2024 {sitename}. All rights reserved.</p>
+    </footer>
 
-        <script>
-            const modeToggle = document.getElementById('mode-toggle');
-            const body = document.body;
-            const sortSelect = document.getElementById('sort-select');
-            const reverseButton = document.getElementById('reverse-sort');
-            const cardsContainer = document.getElementById('blog-cards-container');
-            let isReversed = false;
+    <script>
+        const modeToggle = document.getElementById('mode-toggle');
+        const body = document.body;
+        const sortSelect = document.getElementById('sort-select');
+        const reverseButton = document.getElementById('reverse-sort');
+        const cardsContainer = document.getElementById('blog-cards-container');
+        const searchInput = document.getElementById('search-input');
+        const sort_icon_up = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sort-up" viewBox="0 0 16 16"><path d="M3.5 12.5a.5.5 0 0 1-1 0V3.707L1.354 4.854a.5.5 0 1 1-.708-.708l2-1.999.007-.007a.5.5 0 0 1 .7.006l2 2a.5.5 0 1 1-.707.708L3.5 3.707zm3.5-9a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1z"/></svg>';
+        const sort_icon_down = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sort-down" viewBox="0 0 16 16"><path d="M3.5 2.5a.5.5 0 0 0-1 0v8.793l-1.146-1.147a.5.5 0 0 0-.708.708l2 1.999.007.007a.497.497 0 0 0 .7-.006l2-2a.5.5 0 0 0-.707-.708L3.5 11.293zm3.5 1a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5M7.5 6a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1zm0 3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zm0 3a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1z"/></svg>';
+        let isReversed = false;
 
-            function setDarkMode(isDark) \{
-                if (isDark) \{
-                    body.classList.add('dark-mode');
-                    modeToggle.textContent = '🌙';
-                    localStorage.setItem('dark_mode', 'true');
+        function setDarkMode(isDark) \{
+            if (isDark) \{
+                body.classList.add('dark-mode');
+                modeToggle.textContent = '🌙';
+                localStorage.setItem('dark_mode', 'true');
+            } else \{
+                body.classList.remove('dark-mode');
+                modeToggle.textContent = '☀️';
+                localStorage.setItem('dark_mode', 'false');
+            }
+        }
+
+        // Check user's preference from localStorage
+        const isDarkMode = localStorage.getItem('dark_mode') === 'true';
+        setDarkMode(isDarkMode);
+
+        modeToggle.addEventListener('click', () => \{
+            setDarkMode(!body.classList.contains('dark-mode'));
+        });
+
+        function searchCards() \{
+            const searchTerm = searchInput.value.toLowerCase();
+            const cards = Array.from(cardsContainer.children);
+
+            cards.forEach(card => \{
+                const title = card.querySelector('.card__title').textContent.toLowerCase();
+                const excerpt = card.querySelector('.card__excerpt').textContent.toLowerCase();
+                const tags = card.querySelector('.card__tags').textContent.toLowerCase();
+                if (title.includes(searchTerm) || excerpt.includes(searchTerm) || tags.includes(searchTerm)) \{
+                    card.style.display = '';
                 } else \{
-                    body.classList.remove('dark-mode');
-                    modeToggle.textContent = '☀️';
-                    localStorage.setItem('dark_mode', 'false');
+                    card.style.display = 'none';
                 }
-            }
+            });
+        }
 
-            // Check user's preference from localStorage
-            const isDarkMode = localStorage.getItem('dark_mode') === 'true';
-            setDarkMode(isDarkMode);
+        let searchTimeout;
+        searchInput.addEventListener('input', () => \{
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => \{
+                searchCards();
+            }, 500);
+        });
 
-            modeToggle.addEventListener('click', () => \{
-                setDarkMode(!body.classList.contains('dark-mode'));
+        function sortCards() \{
+            const cards = Array.from(cardsContainer.children);
+            const sortBy = sortSelect.value;
+
+            cards.sort((a, b) => \{
+                if (sortBy == 'date') \{
+                    return new Date(b.dataset.date) - new Date(a.dataset.date);
+                } else if (sortBy == 'title') \{
+                    return a.dataset.title.localeCompare(b.dataset.title);
+                }
             });
 
-            function sortCards() \{
-                const cards = Array.from(cardsContainer.children);
-                const sortBy = sortSelect.value;
-
-                cards.sort((a, b) => \{
-                    if (sortBy == 'date') \{
-                        return new Date(b.dataset.date) - new Date(a.dataset.date);
-                    } else if (sortBy == 'views') \{
-                        return parseInt(b.dataset.views) - parseInt(a.dataset.views);
-                    } else if (sortBy == 'tags') \{
-                        return a.dataset.tags.localeCompare(b.dataset.tags);
-                    }
-                });
-
-                if (isReversed) \{
-                    cards.reverse();
-                }
-
-                cardsContainer.innerHTML = '';
-                cards.forEach(card => cardsContainer.appendChild(card));
+            if (isReversed) \{
+                cards.reverse();
+                reverseButton.innerHTML = sort_icon_down;
+            } else \{
+                reverseButton.innerHTML = sort_icon_up;
             }
 
-            sortSelect.addEventListener('change', sortCards);
-            reverseButton.addEventListener('click', () => \{
-                isReversed = !isReversed;
-                sortCards();
-            });
+            cardsContainer.innerHTML = '';
+            cards.forEach(card => cardsContainer.appendChild(card));
+        }
 
-            // Initial sort
+        sortSelect.addEventListener('change', sortCards);
+        reverseButton.addEventListener('click', () => \{
+            isReversed = !isReversed;
             sortCards();
-        </script>
-    </body>
+        });
+
+        // Initial sort
+        sortCards();
+    </script>
+</body>
+
 </html>

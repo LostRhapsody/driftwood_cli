@@ -1,7 +1,5 @@
-/// TODO - Arrange the blog cards in a grid
 /// TODO - Add a customizable favicon for the site
 /// TODO - Add an 'about' page
-/// TODO - Center the title on blog post pages
 use git2::{Repository, Signature};
 use serde::Serialize;
 use std::{env, error::Error, fs, path::Path};
