@@ -1,14 +1,13 @@
-use crate::netlify::{Netlify, SiteDetails, Ssl_Cert};
+use crate::netlify::{Netlify, Ssl_Cert};
 use anyhow::{Context, Result};
 use chrono;
-use driftwood::Post;
+use driftwood::{Git, Post, SiteDetails, read_and_parse, template_html};
 use git2::Repository;
 use regex::Regex;
-/// TODO - When creating a new post, add the lorum_ipsum.md file to the post as a default value
-/// TODO - make a standard function for writing out menus to reduce repeat code
-/// TODO - make a standard function for reading input to reduce repeat code
-/// TODO - Rebuild the navigation so users can go back and forth between menus easier
 use std::{fs, io::Write, path::Path, vec};
+
+// TODO - Seperate all the logic that involves building files or interacting with the Netlify API to lib.rs.
+// TODO - Implement tui-rs for a better user experience
 
 /// Draws the menu and all the options
 pub fn draw_menu() -> Result<()> {
@@ -63,31 +62,19 @@ fn create_post(site: &SiteDetails) -> Result<()> {
         return Ok(());
     }
 
-    // this is funny and ugly lol but it
-    // removes all special chars and white space in the file name
-    let re = Regex::new(r"[^a-zA-Z0-9\s]").context("Failed to create regex")?;
-    let post_name = input.trim();
-    // remove all special chars, replace with whitespace
-    let post_name = re.replace_all(&post_name, " ");
-    // remove all extra whitespace (leave one space between words)
-    let post_name = post_name.split_whitespace().collect::<Vec<_>>().join(" ");
-    // replace all whitespace with a dash
-    let post_name = post_name.replace(" ", "-");
+    // create a new post
+    // date is set automatically
+    let mut new_post = Post::new(input.trim().to_string());
 
-    // build the post path
-    let post_path = &format!("{}/md_posts", build_site_path(site));
-    let post_path = Path::new(post_path);
+    // strip bad chars and set post.filename
+    new_post.clean_filename()?;
+    // (replace "-"" with spaces basically) and set post.title
+    new_post.build_post_name()?;
+    // check if the site dir exists, if not create it (sitedir/md_posts)
+    Post::check_post_dir(site)?;
 
-    if !post_path.exists() {
-        fs::create_dir(post_path).context("Failed to create this site's 'md_posts' directory")?;
-    }
-
-    // build the title of the file and filename
-    let filename = format!("{}/{}.md", post_path.display(), post_name);
-
-    let date = chrono::Local::now();
-    let date = date.format("%Y/%m/%d %I:%M %p").to_string();
-    let post_title = post_name.replace("-", " ");
+    // build the path to the new post (sitedir/md_posts/{post.filename}.md)
+    let post_path = new_post.build_post_path(site)?;    
 
     println!("Enter tags for the post, separated by commas.");
     print!("> ");
@@ -101,61 +88,22 @@ fn create_post(site: &SiteDetails) -> Result<()> {
 
     println!("Input: {}", input);
 
-    let tags = input.trim().split(",").map(|s| s.to_string()).collect::<Vec<String>>();
-    println!("Tags: {:?}", tags);
-
-    // create a new file in the 'posts' directory
-    let post = Post::new(post_title, date, String::new(), filename, tags.clone(), 0);
+    // remove special chars and set post.tags
+    new_post.clean_and_set_tags(input)?;
 
     // write the post to disk
-    fs::write(&post.filename, "").context("Failed to write to file.")?;
+    new_post.write_post_to_disk(site)?;    
 
-    // open the post file written to disk and write the title and timestamp to the file
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open(&post.filename)
-        .context("Failed to open file.")?;
+    if !site.check_for_site_repo()? {
+        site.create_site_repo().context("Failed to initialize new repository")?
+    }
 
-    let post_content = format!(
-        "date:{}\nexcerpt:{}\nimage:{}\ntags:{}\nviews:{}\n# {}", 
-        post.date,
-        "Write cool excerpt here",
-        "https://images.unsplash.com/photo-1615147342761-9238e15d8b96?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1001&q=80",
-        tags.join(","),
-        post.views,
-        post.title,
-    );
-
-    file.write_all(post_content.as_bytes())
-        .context("Failed to write to file.")?;
-
-        
-    // let site_name = site.name.clone().unwrap();
-    let site_path = build_site_path(site);
-    println!("Site path: {}", site_path);
-    let repo_path = Path::new(&site_path);
-
-    let repo = if repo_path.exists() && repo_path.join(".git").exists() {
-        println!("Opening existing repository");
-        Repository::open(repo_path).context("Failed to open existing repository")?
-    } else {
-        println!("Initializing new repository");
-        Post::init_git_repo(&site_path).context("Failed to initialize new repository")?
-    };
-    Post::commit_changes(&repo, &format!("Add new post: {}", post_name))?;
-
-    
-
-    println!(
-        "Post `{}` was created successfully. Edit your new file in: {}",
-        post.title, post.filename
-    );
+    Post::commit_post_to_repo(site, &format!("Add new post: {}", new_post.title))?;
 
     println!("Press enter to return to the main menu.");
     print!("> ");
     std::io::stdin()
-        .read_line(&mut input)
+        .read_line(&mut String::new())
         .context("Failed to read line")?;
     Ok(())
 }
@@ -191,8 +139,8 @@ fn create_website() -> Result<()> {
     let site_details = create_site(netlify, website_name).expect("Failed to create site");
     make_site_dir(&site_details);
 
-    let repo = Post::init_git_repo(&site_details.name.clone().unwrap());
-    Post::commit_changes(&repo.unwrap(), "Initial commit")?;
+    let repo = Git::init_git_repo(&site_details.name.clone().unwrap());
+    Git::commit_changes(&repo.unwrap(), "Initial commit")?;
 
     println!("Press enter to return to the main menu.");
     print!("> ");
@@ -367,9 +315,11 @@ fn deploy_site(site: &SiteDetails) -> Result<()> {
     let netlify: Netlify = Netlify::new();
 
     // first loop through the site's posts and convert them to HTML
-    let site_path = build_site_path(site);
-    let post_path = format!("{}/md_posts", site_path.clone());
-    let html_post_path = format!("{}/posts", site_path.clone());
+    let site_path = SiteDetails::build_site_path(site)?;
+    // convert site_path PathBuf to string
+    let site_path = site_path.to_string_lossy().to_string();
+    let post_path = format!("{}/md_posts", site_path);
+    let html_post_path = format!("{}/posts", site_path);
 
     // lol bad names... it's the PATH types of these string paths
     let post_path_path = Path::new(&post_path);
@@ -395,7 +345,7 @@ fn deploy_site(site: &SiteDetails) -> Result<()> {
         // full path to html file
         let html_file_name = format!(
             "{}/posts/{}.html",
-            site_path.clone(),
+            site_path,
             entry.file_name().to_string_lossy()
         );
         println!("> {:?}", html_file_name);
@@ -404,7 +354,7 @@ fn deploy_site(site: &SiteDetails) -> Result<()> {
             let md_file_name = md_file_name.to_string_lossy();
             // let html_file_name = html_file_name.file_name().unwrap().to_string_lossy().into_owned();
             // convert to html
-            let success = Post::read_and_parse(&md_file_name, &html_file_name);
+            let success = read_and_parse(&md_file_name, &html_file_name);
             match success {
                 Ok(_) => {
                     println!("Successfully converted markdown to HTML.");
@@ -420,8 +370,13 @@ fn deploy_site(site: &SiteDetails) -> Result<()> {
     }
 
     // remove any dashes or underscores from the site name, replace with spaces
-    let clean_site_name = site.name.clone().unwrap().replace("-", " ").replace("_", " ");
-    let template_success = Post::template_html(html_file_names, site_path.clone(), clean_site_name);
+    let clean_site_name = site
+        .name
+        .clone()
+        .unwrap()
+        .replace("-", " ")
+        .replace("_", " ");
+    let template_success = template_html(html_file_names, site_path.clone(), clean_site_name);
     match template_success {
         Ok(_) => {
             println!("Successfully templated blog links.");
@@ -433,7 +388,6 @@ fn deploy_site(site: &SiteDetails) -> Result<()> {
     }
 
     // second generate the sha1 hash of all the html files
-    let site_path = build_site_path(site);
     let post_path = format!("{}/posts", site_path);
 
     let site_path = Path::new(&site_path);
@@ -646,7 +600,7 @@ fn convert_md_to_html_cli() -> Result<()> {
 
     let args: Vec<&str> = input.trim().split(" ").collect();
 
-    let success = Post::read_and_parse(&args[0], &args[1]);
+    let success = read_and_parse(&args[0], &args[1]);
     match success {
         Ok(_) => {
             println!("Successfully converted markdown to HTML.");
@@ -750,12 +704,4 @@ fn provision_ssl(
             Err(e)
         }
     }
-}
-
-fn build_site_path(site: &SiteDetails) -> String {
-    format!(
-        "sites/{}_{}",
-        site.name.clone().unwrap(),
-        site.id.clone().unwrap()
-    )
 }

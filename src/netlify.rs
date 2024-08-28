@@ -1,6 +1,8 @@
 /// TODO - Create a new server host to run the authentication logic through
 /// TODO - refresh token
+/// 
 use driftwood::OAuth2;
+use driftwood::SiteDetails;
 use oauth2::{
     basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode, ClientId, ClientSecret,
     CsrfToken, RedirectUrl, TokenResponse, TokenUrl,
@@ -23,21 +25,6 @@ pub struct Netlify {
     user_agent: String,
     token: String,
     url: String,
-}
-
-/// SiteDetails struct
-/// Contains the details of a site
-/// name: The name of the site
-/// url: The URL of the site
-/// screenshot_url: The URL of the site's screenshot
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SiteDetails {
-    pub name: Option<String>,
-    pub id: Option<String>,
-    pub ssl: Option<bool>,
-    pub url: Option<String>,
-    pub screenshot_url: Option<String>,
-    pub required: Option<Vec<String>>,
 }
 
 /// FileHashes struct

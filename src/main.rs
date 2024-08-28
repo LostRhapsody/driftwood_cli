@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod lib;
 pub mod netlify;
 
 use dotenv::dotenv;
