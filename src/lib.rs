@@ -69,6 +69,7 @@ static INDEX_TEMPLATE: &'static str = include_str!("templates/default/index-temp
 
 impl Post {
     pub fn new(title: String) -> Post {
+        println!("Creating new post: {}", title);
         let date = chrono::Local::now();
         let date = date.format("%Y/%m/%d %I:%M %p").to_string();
         let filename = String::new();
@@ -84,6 +85,7 @@ impl Post {
     }
 
     pub fn clean_filename(&mut self) -> Result<()> {
+        println!("Cleaning filename: {}", self.title);
         let re = Regex::new(r"[^a-zA-Z0-9\s]")?;
         let mut new_filename = self.title.clone();
         // remove all special chars, replace with whitespace
@@ -96,16 +98,19 @@ impl Post {
         // replace all whitespace with a dash
         new_filename = new_filename.replace(" ", "-");
         self.filename = new_filename;
+        println!("Filename cleaned: {}", self.filename);
         Ok(())
     }
 
     pub fn build_post_name(&mut self) -> Result<()> {
         self.title = self.filename.replace("-", " ");
+        println!("Post name built: {}", self.title);
         Ok(())
     }
 
     pub fn check_post_dir(site: &SiteDetails) -> Result<()> {
         let post_path: PathBuf = SiteDetails::build_site_path(&site)?.join("md_posts");
+        println!("Checking post directory: {}", post_path.to_str().unwrap());
         if !post_path.exists() {
             fs::create_dir(post_path)
                 .context("Failed to create this site's 'md_posts' directory")?;
@@ -117,10 +122,12 @@ impl Post {
         let post_path = SiteDetails::build_site_path(&site)?
             .join("md_posts")
             .join(format!("{}.md", self.filename));
+        println!("Post path built: {}", post_path.to_str().unwrap());
         Ok(post_path)
     }
 
     pub fn clean_and_set_tags(&mut self, new_tags: String) -> Result<()> {
+        println!("Cleaning and setting tags: {}", new_tags);
         let tags = new_tags
             .trim()
             .split(",")
@@ -136,16 +143,17 @@ impl Post {
     }
 
     pub fn write_post_to_disk(&self, site: &SiteDetails) -> Result<()> {
+        println!("Writing post to disk: {}", self.filename);
         let new_posts_path = SiteDetails::build_site_path(&site)?
             .join("md_posts")
             .join(format!("{}.md", self.filename));
-        fs::write(new_posts_path, &self.content).context("Failed to write to file.")?;
+        fs::write(new_posts_path.clone(), &self.content).context("Failed to write to file.")?;
 
         // open the post file written to disk and write the title and timestamp to the file
         let mut file = fs::OpenOptions::new()
             .write(true)
             .append(true)
-            .open(&self.filename)
+            .open(new_posts_path)
             .context("Failed to open file.")?;
 
         let post_content = format!(
@@ -160,15 +168,13 @@ impl Post {
         file.write_all(post_content.as_bytes())
             .context("Failed to write to file.")?;
 
-        println!(
-            "Post `{}` was created successfully. Edit your new file in: {}",
-            self.title, self.filename
-        );
+        println!("Post `{}` was created successfully. Edit your new file in: {}", self.title, self.filename);
 
         Ok(())
     }
 
     pub fn commit_post_to_repo(site: &SiteDetails, message: &str) -> Result<()> {
+        println!("Committing post to repo: {}", message);
         let site_path = SiteDetails::build_site_path(&site)?;
         let repo = Repository::open(site_path)?;
         let signature = Signature::now("Driftwood", "driftwood@example.com")?;

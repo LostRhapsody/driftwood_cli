@@ -1,9 +1,6 @@
 use crate::netlify::{Netlify, Ssl_Cert};
 use anyhow::{Context, Result};
-use chrono;
 use driftwood::{Git, Post, SiteDetails, read_and_parse, template_html};
-use git2::Repository;
-use regex::Regex;
 use std::{fs, io::Write, path::Path, vec};
 
 // TODO - Seperate all the logic that involves building files or interacting with the Netlify API to lib.rs.
@@ -73,9 +70,6 @@ fn create_post(site: &SiteDetails) -> Result<()> {
     // check if the site dir exists, if not create it (sitedir/md_posts)
     Post::check_post_dir(site)?;
 
-    // build the path to the new post (sitedir/md_posts/{post.filename}.md)
-    let post_path = new_post.build_post_path(site)?;    
-
     println!("Enter tags for the post, separated by commas.");
     print!("> ");
     let mut input = String::new();
@@ -92,7 +86,10 @@ fn create_post(site: &SiteDetails) -> Result<()> {
     new_post.clean_and_set_tags(input)?;
 
     // write the post to disk
-    new_post.write_post_to_disk(site)?;    
+    match new_post.write_post_to_disk(site) {
+        Ok(_) => println!("Post written to disk."),
+        Err(e) => println!("Error: {}", e),
+    }
 
     if !site.check_for_site_repo()? {
         site.create_site_repo().context("Failed to initialize new repository")?
