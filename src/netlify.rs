@@ -1,9 +1,10 @@
+use crate::crypto;
 /// TODO - Create a new server host to run the authentication logic through
 /// TODO - refresh token
-/// 
+///
 use driftwood::OAuth2;
 use driftwood::SiteDetails;
-use crate::crypto;
+use rsa::RsaPrivateKey;
 
 use oauth2::{
     basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode, ClientId, ClientSecret,
@@ -61,7 +62,10 @@ impl Netlify {
         let user_agent: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
         // define the base URL
-        let base_url: String = String::from(OAuth2::get_env_var("NETLIFY_BASE_URL").expect("Failed to get NETLIFY_BASE_URL from .env file"));
+        let base_url: String = String::from(
+            OAuth2::get_env_var("NETLIFY_BASE_URL")
+                .expect("Failed to get NETLIFY_BASE_URL from .env file"),
+        );
 
         // first check if there is a token on disk
         // if not, get a new token
@@ -76,8 +80,9 @@ impl Netlify {
             }
         } else {
             println!("> Token file does not exist");
-            let code = Self::login().expect("Failed to trigger login");
-            let token = Self::exchange_code_for_token(code).expect("Failed to exchange code for token");
+            let (code, private_key) = Self::login().expect("Failed to trigger login");
+            let token = Self::exchange_code_for_token(code, private_key)
+                .expect("Failed to exchange code for token");
             fs::write(token_file, token.as_bytes()).unwrap();
             Netlify {
                 user_agent: user_agent.to_string(),
@@ -555,12 +560,20 @@ impl Netlify {
         Ok(file_hashes)
     }
 
-    pub fn login() -> Result<(String), Box<dyn std::error::Error>> {
+    pub fn login() -> Result<(String, rsa::RsaPrivateKey), Box<dyn std::error::Error>> {
         println!("> Logging in...");
-        let auth_url = format!("https://auth.driftwoodapp.com/login");
+
+        let (private_key, public_key) = crypto::generate_key_pair();
+        let public_key_pem = crypto::get_public_key_pem(&public_key);
+        let encoded_public_key = urlencoding::encode(&public_key_pem);
+
+        let auth_url = format!(
+            "https://auth.driftwoodapp.com/login?public_pem_key={}",
+            encoded_public_key
+        );
 
         let listener = TcpListener::bind("127.0.0.1:8000")?;
-    
+
         // Open the authorization URL in the user's browser
         webbrowser::open(&auth_url)?;
 
@@ -570,39 +583,67 @@ impl Netlify {
             stream.read(&mut buffer)?;
 
             let request = String::from_utf8_lossy(&buffer);
-            let url = request.lines().next().unwrap().split_whitespace().nth(1).unwrap();
+            let url = request
+                .lines()
+                .next()
+                .unwrap()
+                .split_whitespace()
+                .nth(1)
+                .unwrap();
             let url = Url::parse(&format!("http://localhost{}", url))?;
 
             println!("> URL: {}", url);
 
-            if let Some(code) = url.query_pairs().find(|(key, _)| key == "code").map(|(_, value)| value.into_owned()) {
+            if let Some(code) = url
+                .query_pairs()
+                .find(|(key, _)| key == "code")
+                .map(|(_, value)| value.into_owned())
+            {
                 println!("> Authorization code: {}", code);
-                
+
                 // Send "You can close this screen now" message
-                let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<html><body><h1>You can close this screen now</h1></body></html>\r\n";
+                let file_contents = fs::read_to_string("src/templates/auth/code_received.html")
+                    .expect("Should have been able to read the file");
+
+                // Create the HTTP response
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: {}\r\n\r\n{}",
+                    file_contents.len(),
+                    file_contents
+                );
+
                 stream.write_all(response.as_bytes())?;
                 stream.flush()?;
 
-                return Ok(code);
+                return Ok((code, private_key));
             }
         }
-
 
         Err("No authorization code received".into())
     }
 
-    pub fn exchange_code_for_token(code: String) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn exchange_code_for_token(
+        code: String,
+        private_key: RsaPrivateKey,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+
         println!("> Exchanging code for token...");
         println!("> Code: {}", code);
+
         let client = reqwest::blocking::Client::new();
 
-        let response = client.get(format!("https://auth.driftwoodapp.com/callback?code={}", code))
+        let response = client
+            .get(format!(
+                "https://auth.driftwoodapp.com/callback?code={}",
+                code
+            ))
             .send()?;
 
         println!("> Response: {:?}", response);
 
         let token_response: serde_json::Value = response.json()?;
         let token: String = token_response["token"].as_str().unwrap().to_string();
+        let token = crypto::decrypt_token(&token, &private_key);
         println!("> Token: {}", token);
         Ok(token)
     }
@@ -619,12 +660,12 @@ impl Netlify {
     //     println!("> sending request to: {}", auth_url);
     //     webbrowser::open(&auth_url)?;
 
-    //     Ok(())   
+    //     Ok(())
     // }
 
     // fn wait_for_response() -> Result<String, Box<dyn std::error::Error>> {
     //     let listener = TcpListener::bind("localhost:8080")?;
-        
+
     //     for stream in listener.incoming() {
     //         let mut stream = stream?;
     //         let mut reader = BufReader::new(&stream);
@@ -684,9 +725,7 @@ impl Netlify {
         println!("> Generating PKCE challenge...");
 
         // Generate the authorization URL
-        let (auth_url, csrf_token) = client
-            .authorize_url(CsrfToken::new_random)
-            .url();
+        let (auth_url, csrf_token) = client.authorize_url(CsrfToken::new_random).url();
 
         println!("Open this URL in your browser:\n{auth_url}\n");
 
@@ -745,9 +784,7 @@ impl Netlify {
         );
 
         // Exchange the authorization code for an access token
-        let token_result = client
-            .exchange_code(code)
-            .request(http_client);
+        let token_result = client.exchange_code(code).request(http_client);
 
         match token_result {
             Ok(token_result) => {
