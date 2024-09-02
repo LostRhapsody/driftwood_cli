@@ -80,8 +80,8 @@ impl Netlify {
             }
         } else {
             println!("> Token file does not exist");
-            let (code, private_key) = Self::login().expect("Failed to trigger login");
-            let token = Self::exchange_code_for_token(code, private_key)
+            let (code, state, private_key) = Self::login().expect("Failed to trigger login");
+            let token = Self::exchange_code_for_token(code, state, private_key)
                 .expect("Failed to exchange code for token");
             fs::write(token_file, token.as_bytes()).unwrap();
             Netlify {
@@ -560,7 +560,7 @@ impl Netlify {
         Ok(file_hashes)
     }
 
-    pub fn login() -> Result<(String, rsa::RsaPrivateKey), Box<dyn std::error::Error>> {
+    pub fn login() -> Result<(String, String, rsa::RsaPrivateKey), Box<dyn std::error::Error>> {
         println!("> Logging in...");
 
         let (private_key, public_key) = crypto::generate_key_pair();
@@ -568,7 +568,7 @@ impl Netlify {
         let encoded_public_key = urlencoding::encode(&public_key_pem);
 
         let auth_url = format!(
-            "https://auth.driftwoodapp.com/login?public_pem_key={}",
+            "https://auth.driftwoodapp.com/login?public_key_pem={}",
             encoded_public_key
         );
 
@@ -594,12 +594,20 @@ impl Netlify {
 
             println!("> URL: {}", url);
 
-            if let Some(code) = url
-                .query_pairs()
-                .find(|(key, _)| key == "code")
-                .map(|(_, value)| value.into_owned())
-            {
+            let mut code = None;
+            let mut state = None;
+
+            for (key, value) in url.query_pairs() {
+                match key.as_ref() {
+                    "code" => code = Some(value.into()),
+                    "state" => state = Some(value.into_owned()),
+                    _ => {}
+                }
+            }
+
+            if let (Some(code), Some(state)) = (code, state) {
                 println!("> Authorization code: {}", code);
+                println!("> Authorization state: {}", state);
 
                 // Send "You can close this screen now" message
                 let file_contents = fs::read_to_string("src/templates/auth/code_received.html")
@@ -615,7 +623,7 @@ impl Netlify {
                 stream.write_all(response.as_bytes())?;
                 stream.flush()?;
 
-                return Ok((code, private_key));
+                return Ok((code, state, private_key));
             }
         }
 
@@ -624,9 +632,9 @@ impl Netlify {
 
     pub fn exchange_code_for_token(
         code: String,
+        state: String,
         private_key: RsaPrivateKey,
     ) -> Result<String, Box<dyn std::error::Error>> {
-
         println!("> Exchanging code for token...");
         println!("> Code: {}", code);
 
@@ -634,15 +642,21 @@ impl Netlify {
 
         let response = client
             .get(format!(
-                "https://auth.driftwoodapp.com/callback?code={}",
-                code
+                "https://auth.driftwoodapp.com/callback?code={}&state={}",
+                code, state
             ))
             .send()?;
 
-        println!("> Response: {:?}", response);
+        println!("> {:?}", response);
 
         let token_response: serde_json::Value = response.json()?;
+
+        println!("> Token response: {:?}", token_response);
+
         let token: String = token_response["token"].as_str().unwrap().to_string();
+
+        println!("> Encrypted token: {}", token);
+
         let token = crypto::decrypt_token(&token, &private_key);
         println!("> Token: {}", token);
         Ok(token)
