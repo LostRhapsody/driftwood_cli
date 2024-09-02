@@ -3,6 +3,8 @@
 /// 
 use driftwood::OAuth2;
 use driftwood::SiteDetails;
+use crate::crypto;
+
 use oauth2::{
     basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode, ClientId, ClientSecret,
     CsrfToken, RedirectUrl, TokenResponse, TokenUrl,
@@ -11,6 +13,7 @@ use reqwest::Url;
 /// Netlify Module
 /// Used to interact with the Netlify API
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::{
     collections::HashMap,
     fs::{self, File},
@@ -18,6 +21,7 @@ use std::{
     net::TcpListener,
     path::Path,
 };
+use webbrowser;
 
 /// Netlify struct
 /// Contains the user agent, token, and base URL for the Netlify API
@@ -72,11 +76,12 @@ impl Netlify {
             }
         } else {
             println!("> Token file does not exist");
-            let token = Self::netlify_oauth2_code_grant().expect("Failed to retrieve token");
-            fs::write(token_file, token.access_token().secret().as_bytes()).unwrap();
+            let code = Self::login().expect("Failed to trigger login");
+            let token = Self::exchange_code_for_token(code).expect("Failed to exchange code for token");
+            fs::write(token_file, token.as_bytes()).unwrap();
             Netlify {
                 user_agent: user_agent.to_string(),
-                token: token.access_token().secret().to_string(),
+                token: token,
                 url: base_url,
             }
         }
@@ -549,7 +554,113 @@ impl Netlify {
 
         Ok(file_hashes)
     }
+
+    pub fn login() -> Result<(String), Box<dyn std::error::Error>> {
+        println!("> Logging in...");
+        let auth_url = format!("https://auth.driftwoodapp.com/login");
+
+        let listener = TcpListener::bind("127.0.0.1:8000")?;
     
+        // Open the authorization URL in the user's browser
+        webbrowser::open(&auth_url)?;
+
+        for stream in listener.incoming() {
+            let mut stream = stream?;
+            let mut buffer = [0; 1024];
+            stream.read(&mut buffer)?;
+
+            let request = String::from_utf8_lossy(&buffer);
+            let url = request.lines().next().unwrap().split_whitespace().nth(1).unwrap();
+            let url = Url::parse(&format!("http://localhost{}", url))?;
+
+            println!("> URL: {}", url);
+
+            if let Some(code) = url.query_pairs().find(|(key, _)| key == "code").map(|(_, value)| value.into_owned()) {
+                println!("> Authorization code: {}", code);
+                
+                // Send "You can close this screen now" message
+                let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<html><body><h1>You can close this screen now</h1></body></html>\r\n";
+                stream.write_all(response.as_bytes())?;
+                stream.flush()?;
+
+                return Ok(code);
+            }
+        }
+
+
+        Err("No authorization code received".into())
+    }
+
+    pub fn exchange_code_for_token(code: String) -> Result<String, Box<dyn std::error::Error>> {
+        println!("> Exchanging code for token...");
+        println!("> Code: {}", code);
+        let client = reqwest::blocking::Client::new();
+
+        let response = client.get(format!("https://auth.driftwoodapp.com/callback?code={}", code))
+            .send()?;
+
+        println!("> Response: {:?}", response);
+
+        let token_response: serde_json::Value = response.json()?;
+        let token: String = token_response["token"].as_str().unwrap().to_string();
+        println!("> Token: {}", token);
+        Ok(token)
+    }
+
+    // pub fn trigger_login() -> Result<(), Box<dyn std::error::Error>> {
+    //     println!("> Triggering login...");
+
+    //     let (private_key, public_key) = crypto::generate_key_pair();
+    //     let public_key_pem = crypto::get_public_key_pem(&public_key);
+    //     let encoded_public_key = urlencoding::encode(&public_key_pem);
+
+    //     let auth_url = format!("https://auth.driftwoodapp.com/login?public_key_pem={}", encoded_public_key);
+
+    //     println!("> sending request to: {}", auth_url);
+    //     webbrowser::open(&auth_url)?;
+
+    //     Ok(())   
+    // }
+
+    // fn wait_for_response() -> Result<String, Box<dyn std::error::Error>> {
+    //     let listener = TcpListener::bind("localhost:8080")?;
+        
+    //     for stream in listener.incoming() {
+    //         let mut stream = stream?;
+    //         let mut reader = BufReader::new(&stream);
+    //         let mut request_line = String::new();
+    //         reader.read_line(&mut request_line)?;
+
+    //         if request_line.starts_with("GET") {
+    //             let url = url::Url::parse(&format!("http://localhost{}", request_line.split_whitespace().nth(1).unwrap()))?;
+    //             let code = url.query_pairs()
+    //                 .find(|(key, _)| key == "code")
+    //                 .map(|(_, value)| value.into_owned())
+    //                 .ok_or("No code found in URL")?;
+
+    //             let auth_code = AuthorizationCode::new(code);
+
+    //             // Create the OAuth2 client (assuming it's already configured elsewhere)
+    //             let client = BasicClient::new(
+    //                 ClientId::new(OAuth2::get_env_var("NETLIFY_CLIENT_ID").unwrap()),
+    //                 Some(ClientSecret::new(OAuth2::get_env_var("NETLIFY_CLIENT_SECRET").unwrap())),
+    //                 AuthUrl::new("https://app.netlify.com/authorize".to_string()).unwrap(),
+    //                 Some(TokenUrl::new("https://api.netlify.com/oauth/token".to_string()).unwrap())
+    //             );
+
+    //             // Exchange the code for a token
+    //             let token_result = client
+    //                 .exchange_code(auth_code)
+    //                 .request(oauth2::reqwest::http_client)?;
+
+    //             // Return the access token as a string
+    //             return Ok(token_result.access_token().secret().to_string());
+    //         }
+    //     }
+
+    //     Err("Failed to receive response".into())
+    // }
+
     // pub fn oauth2() -> Result<StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>, Box<dyn Error>> {
     pub fn netlify_oauth2_code_grant() -> Result<
         oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>,

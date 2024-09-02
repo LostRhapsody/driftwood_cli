@@ -35,3 +35,7 @@ git2 = "0.19.0"
 rsa = { version = "0.9.6", features = ["pem"] }
 rand = "0.8.5"
 base64 = "0.22.1"
+# For opening a browser
+webbrowser = "1.0.1"
+# For URL encoding
+urlencoding = "2.1.3"
